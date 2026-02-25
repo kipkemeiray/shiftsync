@@ -20,6 +20,7 @@ env = environ.Env(
     DEBUG=(bool, False),
     ALLOWED_HOSTS=(list, []),
 )
+
 environ.Env.read_env(BASE_DIR / ".env")
 
 # ---------------------------------------------------------------------------
@@ -116,8 +117,16 @@ CHANNEL_LAYERS = {
 # Database
 # ---------------------------------------------------------------------------
 DATABASES = {
-    "default": env.db("DATABASE_URL", default="sqlite:///db.sqlite3"),
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': env('DB_NAME'),
+        'USER': env('DB_USER'),
+        'PASSWORD': env('DB_PASSWORD'),
+        'HOST': env('DB_HOST'),
+        'PORT': env('DB_PORT'),
+    }
 }
+
 DATABASES["default"]["ATOMIC_REQUESTS"] = True  # Wrap every request in a transaction
 
 # ---------------------------------------------------------------------------

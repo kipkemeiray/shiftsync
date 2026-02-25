@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+*.pyo
+*.pyd
+*.pdb
+
+# Virtualenv
+venv/
+.env
+*.env
+
+# Django
+db.sqlite3
+media/
+staticfiles/
+*.log
+
+# Migrations
+*/migrations/__pycache__/
+*/migrations/*.py
+
+# IDEs
+.vscode/
+.idea/
+
+# Coverage & Testing
+.coverage
+htmlcov/
+.tox/
+pytest_cache/
+
+# Docker
+*.pid
+*.seed
+*.db
+*.tar
+*.sock
+
+# Node (if frontend assets ever added)
+node_modules/

@@ -267,6 +267,7 @@ def _check_time_window_covers_shift(
         ConstraintResult.
     """
     from datetime import datetime as dt
+    from datetime import timezone as dt_timezone
     from zoneinfo import ZoneInfo
 
     avail_tz = ZoneInfo(availability.timezone)
@@ -279,8 +280,8 @@ def _check_time_window_covers_shift(
     avail_end_aware = dt.combine(shift_date_local, availability.end_time, tzinfo=avail_tz)
 
     # Convert to UTC for comparison
-    avail_start_utc = avail_start_aware.astimezone(timezone.utc)
-    avail_end_utc = avail_end_aware.astimezone(timezone.utc)
+    avail_start_utc = avail_start_aware.astimezone(dt_timezone.utc)
+    avail_end_utc = avail_end_aware.astimezone(dt_timezone.utc)
 
     if avail_start_utc <= shift.start_utc and avail_end_utc >= shift.end_utc:
         return ConstraintResult.success()
@@ -492,6 +493,7 @@ def check_weekly_hours(user: "User", shift: "Shift") -> ConstraintResult:
         ConstraintResult (warning or block).
     """
     from apps.scheduling.models import ShiftAssignment
+    from datetime import timezone as dt_timezone
 
     config = settings.SHIFTSYNC
     local_tz = shift.location.get_zoneinfo()
@@ -502,8 +504,8 @@ def check_weekly_hours(user: "User", shift: "Shift") -> ConstraintResult:
     sunday = monday + timedelta(days=6)
 
     from datetime import datetime as dt
-    week_start_utc = dt.combine(monday, dt.min.time(), tzinfo=local_tz).astimezone(timezone.utc)
-    week_end_utc = dt.combine(sunday, dt.max.time(), tzinfo=local_tz).astimezone(timezone.utc)
+    week_start_utc = dt.combine(monday, dt.min.time(), tzinfo=local_tz).astimezone(dt_timezone.utc)
+    week_end_utc = dt.combine(sunday, dt.max.time(), tzinfo=local_tz).astimezone(dt_timezone.utc)
 
     existing = ShiftAssignment.objects.filter(
         user=user,

@@ -1,0 +1,38 @@
+# Core
+Django==5.1.4
+django-environ==0.11.2
+psycopg[binary]==3.2.3
+
+# Channels (WebSockets)
+channels==4.2.0
+channels-redis==4.2.0
+daphne==4.1.2
+
+# Celery (async tasks)
+celery==5.4.0
+django-celery-beat==2.7.0
+redis==5.2.0
+
+# Auth & Permissions
+django-guardian==2.4.0
+
+# Forms & Validation
+django-crispy-forms==2.3
+crispy-tailwind==1.0.3
+
+# Utilities
+python-dateutil==2.9.0
+pytz==2024.2
+factory-boy==3.3.1
+
+# Dev & Testing
+pytest-django==4.9.0
+pytest-asyncio==0.24.0
+coverage==7.6.9
+black==24.10.0
+isort==5.13.2
+flake8==7.1.1
+
+# Production
+gunicorn==23.0.0
+whitenoise==6.8.2

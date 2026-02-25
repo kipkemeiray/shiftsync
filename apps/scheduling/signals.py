@@ -1,6 +1,6 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from apps.scheduling.models import ShiftAssignment, SwapRequest
+from apps.scheduling.models import ManagerOverride, ShiftAssignment, SwapRequest
 from apps.audit.models import AuditLog
 from apps.notifications.models import Notification
 
@@ -44,4 +44,24 @@ def log_swap_request(sender, instance, created, **kwargs):
             title="Swap Request Received",
             body=f"{instance.requester.get_full_name()} requested a swap for {instance.assignment.shift}",
             data={"swap_request_id": instance.id},
+        )
+
+
+@receiver(post_save, sender=ManagerOverride)
+def log_manager_override(sender, instance, created, **kwargs):
+    """Audit and notify when a manager override is created."""
+    if created:
+        AuditLog.objects.create(
+            actor=instance.manager,
+            action="manager_override.created",
+            content_object=instance,
+            after={"assignment": instance.assignment.id, "reason": instance.reason},
+        )
+
+        Notification.objects.create(
+            recipient=instance.assignment.user,
+            notification_type=Notification.Type.SHIFT_CHANGED,
+            title="Manager Override",
+            body=f"Your shift assignment was overridden by {instance.manager.get_full_name()}",
+            data={"override_id": instance.id},
         )

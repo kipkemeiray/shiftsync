@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en" x-data="{ darkMode: false }" :class="{ 'dark': darkMode }">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}ShiftSync{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</head>
+<body>
+    {% include "includes/navbar.html" %}
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+    {% include "includes/footer.html" %}
+</body>
+</html>

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Page Not Found{% endblock %}
+
+{% block content %}
+<div class="error-page" x-data="{ showHelp: false }">
+    <h1>404</h1>
+    <p>Sorry, the page you’re looking for doesn’t exist.</p>
+
+    <button @click="showHelp = !showHelp">
+        Need Help?
+    </button>
+
+    <div x-show="showHelp" class="help-section">
+        <ul>
+            <li><a href="{% url 'home' %}">Return to Home</a></li>
+            <li><a href="{% url 'shifts_list' %}">View Shifts</a></li>
+            <li><a href="{% url 'locations_list' %}">Browse Locations</a></li>
+            {% if user.is_authenticated %}
+              <li><a href="{% url 'profile' %}">Your Profile</a></li>
+            {% else %}
+              <li><a href="{% url 'login' %}">Login</a></li>
+            {% endif %}
+        </ul>
+    </div>
+</div>
+{% endblock %}

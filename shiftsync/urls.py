@@ -11,7 +11,7 @@ URL namespaces follow the pattern: app_name:view_name
 
 from django.contrib import admin
 from django.http import JsonResponse
-from django.urls import include, path
+from django.urls import include, path, re_path as url
 from django.utils import timezone
 
 

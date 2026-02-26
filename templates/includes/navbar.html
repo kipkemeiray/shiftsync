@@ -1,30 +1,33 @@
 <nav class="navbar">
   <div class="navbar-left">
-    <a href="{% url 'home' %}" class="logo">ShiftSync</a>
+    <a href="/" class="logo">ShiftSync</a>
   </div>
+
+  {% if user.is_authenticated %}
 
   <div class="navbar-center">
     <ul>
-      <li><a href="{% url 'shifts_list' %}">Shifts</a></li>
-      <li><a href="{% url 'locations_list' %}">Locations</a></li>
-      <li><a href="{% url 'notifications_list' %}" hx-get="{% url 'notifications_list' %}" hx-trigger="click" hx-target="#notifications-dropdown">Notifications</a></li>
+      <li><a href="">Shifts</a></li>
+      <li><a href="">Locations</a></li>
+      <li><a href="" hx-get="" hx-trigger="click" hx-target="#notifications-dropdown">Notifications</a></li>
     </ul>
   </div>
+  {% endif %}
 
   <div class="navbar-right">
     {% if user.is_authenticated %}
       <span>Welcome, {{ user.get_full_name }}</span>
       {% if user_role == "MANAGER" %}
-        <a href="{% url 'manager_dashboard' %}">Manager Dashboard</a>
+        <a href="">Manager Dashboard</a>
       {% elif user_role == "STAFF" %}
-        <a href="{% url 'staff_dashboard' %}">My Shifts</a>
+        <a href="">My Shifts</a>
       {% elif user_role == "ADMIN" %}
-        <a href="{% url 'admin_dashboard' %}">Admin Panel</a>
+        <a href="">Admin Panel</a>
       {% endif %}
-      <a href="{% url 'logout' %}">Logout</a>
+      <a href="/accounts/logout">Logout</a>
     {% else %}
-      <a href="{% url 'login' %}">Login</a>
-      <a href="{% url 'register' %}">Register</a>
+      <a href="/accounts/login">Login</a>
+      <a href="/accounts/register">Register</a>
     {% endif %}
   </div>
 </nav>

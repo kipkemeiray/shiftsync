@@ -48,6 +48,7 @@ THIRD_PARTY_APPS = [
     "crispy_forms",
     "crispy_tailwind",
     "django_celery_beat",
+    "bootstrap5",
 ]
 
 LOCAL_APPS = [

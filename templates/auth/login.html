@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Login — ShiftSync{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+  <div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+      <div class="card shadow-sm">
+        <div class="card-body p-4">
+          <h3 class="card-title mb-4 text-center">Login</h3>
+
+          <form
+            hx-post="/accounts/login/"
+            hx-target="#login-errors"
+            hx-swap="innerHTML"
+            x-data="{ loading: false }"
+            @submit="loading = true"
+            @htmx:after-request.camel="loading = false"
+          >
+            {% csrf_token %}
+
+            <div class="mb-3">
+              <label for="email" class="form-label">Email</label>
+              <input
+                type="email"
+                class="form-control"
+                id="email"
+                name="email"
+                autocomplete="email"
+                required
+              >
+            </div>
+
+            <div class="mb-3">
+              <label for="password" class="form-label">Password</label>
+              <input
+                type="password"
+                class="form-control"
+                id="password"
+                name="password"
+                autocomplete="current-password"
+                required
+              >
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100" :disabled="loading">
+              <span x-show="!loading">Login</span>
+              <span x-show="loading">
+                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                Logging in...
+              </span>
+            </button>
+          </form>
+
+          <!-- HTMX swaps only this div's innerHTML on error -->
+          <div id="login-errors" class="mt-3"></div>
+
+          <p class="mt-4 mb-0 text-muted text-center small">&copy; {{ year }} ShiftSync</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

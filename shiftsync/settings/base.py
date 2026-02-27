@@ -225,3 +225,5 @@ CORS_ALLOW_ALL_ORIGINS = True
 APP_NAME = os.environ.get("FLY_APP_NAME")
 
 ALLOWED_HOSTS = [f"https://{APP_NAME}.fly.dev", f"{APP_NAME}.fly.dev", 'localhost', '127.0.0.1']
+
+CSRF_TRUSTED_ORIGINS = [f"https://{APP_NAME}.fly.dev", f"{APP_NAME}.fly.dev", 'localhost', '127.0.0.1']

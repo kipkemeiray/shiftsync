@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% load scheduling_tags %}
+
+{% block title %}Schedule — ShiftSync{% endblock %}
+
+{% block content %}
+
+{# ── Header + week navigation ────────────────────────────────────── #}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+  <div>
+    <h1 class="h3 mb-0 fw-bold">
+      <i class="bi bi-calendar3 me-2 text-primary"></i>Schedule
+    </h1>
+    <p class="text-muted mb-0 small">Week of {{ week_start|date:"F j, Y" }}</p>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <a href="?week={{ prev_week }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-chevron-left"></i>
+    </a>
+    <a href="?" class="btn btn-outline-secondary btn-sm">Today</a>
+    <a href="?week={{ next_week }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-chevron-right"></i>
+    </a>
+  </div>
+</div>
+
+{# ── Legend ──────────────────────────────────────────────────────── #}
+<div class="d-flex gap-3 mb-4 flex-wrap align-items-center">
+  <small class="text-muted fw-semibold">Legend:</small>
+  <small><span class="badge bg-success">●</span> Full coverage</small>
+  <small><span class="badge bg-warning text-dark">●</span> Understaffed</small>
+  <small><span class="badge bg-secondary">●</span> Unpublished</small>
+  <small><i class="bi bi-star-fill text-warning"></i> Premium</small>
+</div>
+
+{# ── One card per managed location ───────────────────────────────── #}
+{% for location in managed_locations %}
+<div class="card border-0 shadow-sm mb-4">
+
+  <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
+    <h5 class="mb-0 fw-semibold">
+      <i class="bi bi-geo-alt-fill me-2 text-primary"></i>{{ location.name }}
+      <span class="badge bg-light text-dark border fw-normal ms-2" style="font-size:.7rem">
+        {{ location.timezone }}
+      </span>
+    </h5>
+    <a href="{% url 'locations:detail' location.pk %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-people-fill me-1"></i>Roster
+    </a>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-bordered align-top mb-0" style="min-width:840px">
+      <thead class="table-light">
+        <tr>
+          {% for day in week_dates %}
+          <th class="text-center py-2{% if day == today %} table-primary{% endif %}"
+              style="width:14.28%">
+            <div class="fw-semibold small">{{ day|date:"D" }}</div>
+            <div class="text-muted" style="font-size:.7rem">{{ day|date:"M j" }}</div>
+          </th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="vertical-align:top">
+          {% for day in week_dates %}
+            {% with day_slice=grid|shifts_for_day:day %}
+            {% with cell=day_slice|for_location:location.pk %}
+            <td class="p-1{% if day == today %} bg-primary bg-opacity-10{% endif %}"
+                style="min-height:110px">
+
+              {% for shift in cell %}
+                {% if not shift.is_published %}
+                  {% with border="border-secondary" badge="bg-secondary" %}
+                    {% include "scheduling/partials/shift_card.html" %}
+                  {% endwith %}
+                {% endif %}
+                {% if shift.is_published and shift.is_fully_staffed %}
+                  {% with border="border-success" badge="bg-success" %}
+                    {% include "scheduling/partials/shift_card.html" %}
+                  {% endwith %}
+                {% endif %}
+                {% if shift.is_published and not shift.is_fully_staffed %}
+                  {% with border="border-warning" badge="bg-warning text-dark" %}
+                    {% include "scheduling/partials/shift_card.html" %}
+                  {% endwith %}
+                {% endif %}
+              {% empty %}
+                <div class="text-center text-muted py-3" style="font-size:.75rem">—</div>
+              {% endfor %}
+
+            </td>
+            {% endwith %}
+            {% endwith %}
+          {% endfor %}
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+{% empty %}
+<div class="alert alert-info border-0 shadow-sm">
+  <i class="bi bi-info-circle me-2"></i>No locations are assigned to you.
+</div>
+{% endfor %}
+
+{% endblock %}

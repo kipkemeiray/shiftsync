@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}My Dashboard — ShiftSync{% endblock %}
+
+{% block content %}
+
+{# ── Page header ────────────────────────────────────────────────── #}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h1 class="h3 mb-0 fw-bold">
+      <i class="bi bi-person-circle me-2 text-primary"></i>
+      Welcome back, {{ user.get_short_name }}
+    </h1>
+    <p class="text-muted mb-0 small">{{ today|date:"l, F j, Y" }}</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'accounts:availability' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-clock me-1"></i>My Availability
+    </a>
+    <a href="{% url 'scheduling:swaps' %}" class="btn btn-primary btn-sm">
+      <i class="bi bi-arrow-left-right me-1"></i>Swap Requests
+    </a>
+  </div>
+</div>
+
+{# ── Stat cards ──────────────────────────────────────────────────── #}
+<div class="row row-cols-2 row-cols-md-4 g-3 mb-4">
+  {% include "includes/stat_card.html" with icon="calendar-check" label="Upcoming Shifts" value=upcoming_count color="primary" url="#upcoming-shifts" %}
+  {% include "includes/stat_card.html" with icon="clock-history" label="Hours This Week" value=hours_this_week|floatformat:1 color="success" %}
+  {% include "includes/stat_card.html" with icon="arrow-left-right" label="Pending Swap Requests" value=pending_swaps_count color="warning" url="#swap-section" %}
+  {% include "includes/stat_card.html" with icon="calendar-plus" label="Open Shifts I Can Claim" value=claimable_count color="info" url="#open-shifts" %}
+</div>
+
+{# ── Next shift callout ──────────────────────────────────────────── #}
+{% if next_shift %}
+<div class="alert alert-primary border-0 shadow-sm mb-4 d-flex align-items-center gap-3">
+  <i class="bi bi-alarm-fill fs-3 flex-shrink-0"></i>
+  <div>
+    <div class="fw-bold">Your next shift</div>
+    <div>
+      <strong>{{ next_shift.shift.required_skill.display_name }}</strong>
+      at <strong>{{ next_shift.shift.location.name }}</strong> &mdash;
+      {{ next_shift.shift.start_utc|date:"l, F j @ g:ia" }} &mdash;
+      {{ next_shift.shift.end_utc|date:"g:ia" }} UTC
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{# ── Upcoming shifts ─────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4" id="upcoming-shifts">
+  <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+    <h5 class="mb-0 fw-semibold">
+      <i class="bi bi-calendar3 me-2 text-primary"></i>Upcoming Shifts
+    </h5>
+    <a href="{% url 'scheduling:my_shifts' %}" class="btn btn-link btn-sm p-0">View all</a>
+  </div>
+  <div class="card-body p-0">
+    <ul class="list-group list-group-flush">
+      {% for assignment in upcoming_assignments %}
+      <li class="list-group-item py-3">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="fw-semibold">
+              {{ assignment.shift.required_skill.display_name }}
+              <span class="text-muted fw-normal small">@ {{ assignment.shift.location.name }}</span>
+            </div>
+            <div class="text-muted small mt-1">
+              <i class="bi bi-clock me-1"></i>
+              {{ assignment.shift.start_utc|date:"D, M j @ g:ia" }} &mdash;
+              {{ assignment.shift.end_utc|date:"g:ia" }} UTC
+              <span class="badge bg-light text-dark border ms-2">
+                {{ assignment.shift.duration_hours|floatformat:1 }}h
+              </span>
+              {% if assignment.shift.is_premium %}
+                <span class="badge bg-warning text-dark ms-1">
+                  <i class="bi bi-star-fill me-1"></i>Premium
+                </span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="d-flex flex-column align-items-end gap-1">
+            {% if assignment.status == 'assigned' %}
+              <span class="badge bg-success">Confirmed</span>
+              {# Only allow swap/drop if shift isn't past edit cutoff #}
+              {% if not assignment.shift.is_past_edit_cutoff %}
+              <a href="{% url 'scheduling:swaps' %}?action=request&assignment={{ assignment.pk }}"
+                 class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-arrow-left-right me-1"></i>Request Swap
+              </a>
+              {% endif %}
+            {% elif assignment.status == 'swap_pending' %}
+              <span class="badge bg-warning text-dark">Swap Pending</span>
+            {% endif %}
+          </div>
+        </div>
+      </li>
+      {% empty %}
+      <li class="list-group-item text-center text-muted py-5">
+        <i class="bi bi-calendar-x fs-2 d-block mb-2"></i>
+        No upcoming shifts. Check back after your manager publishes the schedule.
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+
+{# ── Bottom row: swap requests + open shifts ──────────────────────── #}
+<div class="row g-4">
+
+  {# My pending swap/drop requests #}
+  <div class="col-lg-6" id="swap-section">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-semibold">
+          <i class="bi bi-arrow-left-right me-2 text-warning"></i>My Swap Requests
+        </h5>
+        <a href="{% url 'scheduling:swaps' %}" class="btn btn-link btn-sm p-0">Manage</a>
+      </div>
+      <div class="card-body p-0">
+        <ul class="list-group list-group-flush">
+          {% for swap in my_swap_requests %}
+          <li class="list-group-item py-3">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="small fw-semibold">{{ swap.get_request_type_display }}</div>
+                <div class="text-muted small">
+                  {{ swap.assignment.shift.start_utc|date:"D, M j @ g:ia" }} UTC
+                </div>
+                {% if swap.target %}
+                <div class="text-muted small">
+                  With: {{ swap.target.get_full_name }}
+                </div>
+                {% endif %}
+              </div>
+              <span class="badge
+                {% if swap.status == 'approved' %}bg-success
+                {% elif swap.status == 'pending_manager' or swap.status == 'pending_acceptance' %}bg-warning text-dark
+                {% elif swap.status == 'rejected' %}bg-danger
+                {% else %}bg-secondary{% endif %}">
+                {{ swap.get_status_display }}
+              </span>
+            </div>
+          </li>
+          {% empty %}
+          <li class="list-group-item text-center text-muted py-4">
+            No active swap requests.
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  {# Open shifts available to claim #}
+  <div class="col-lg-6" id="open-shifts">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-bottom py-3">
+        <h5 class="mb-0 fw-semibold">
+          <i class="bi bi-calendar-plus me-2 text-info"></i>Open Shifts I Can Pick Up
+        </h5>
+      </div>
+      <div class="card-body p-0">
+        <ul class="list-group list-group-flush">
+          {% for shift in claimable_shifts %}
+          <li class="list-group-item py-3">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="fw-semibold">
+                  {{ shift.required_skill.display_name }}
+                  <span class="text-muted fw-normal small">@ {{ shift.location.name }}</span>
+                </div>
+                <div class="text-muted small">
+                  {{ shift.start_utc|date:"D, M j @ g:ia" }} &mdash;
+                  {{ shift.end_utc|date:"g:ia" }} UTC
+                  <span class="badge bg-light text-dark border ms-1">
+                    {{ shift.duration_hours|floatformat:1 }}h
+                  </span>
+                </div>
+              </div>
+              <button class="btn btn-sm btn-success text-nowrap"
+                      hx-post="{% url 'scheduling:claim_shift' shift.pk %}"
+                      hx-confirm="Pick up this shift?"
+                      hx-target="closest li"
+                      hx-swap="outerHTML">
+                <i class="bi bi-plus-circle me-1"></i>Claim
+              </button>
+            </div>
+          </li>
+          {% empty %}
+          <li class="list-group-item text-center text-muted py-4">
+            <i class="bi bi-check-circle-fill text-success me-1"></i>
+            No open shifts available for your skills right now.
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}

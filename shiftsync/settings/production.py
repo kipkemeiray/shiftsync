@@ -32,7 +32,7 @@ ALLOWED_HOSTS = env.list(
 # CSRF trusted origins must match the public URL(s) the app is served from
 CSRF_TRUSTED_ORIGINS = env.list(
     "CSRF_TRUSTED_ORIGINS",
-    default=["https://shiftsync.fly.dev"],
+    default=["https://shiftsync.fly.dev", 'shiftsync.fly.dev', "*"],
 )
 
 # Email: simulated via console for the demo (no SMTP needed)

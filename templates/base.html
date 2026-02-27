@@ -1,41 +1,51 @@
-{% load bootstrap5 %}
 {% load static %}
-
 <!DOCTYPE html>
-<html lang="en" x-data="{ darkMode: false }" :class="{ 'dark': darkMode }">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="{% static 'css/main.css' %}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}ShiftSync{% endblock %}</title>
 
-    {%if title %}
-    <title>{{title}}</title>
-    {% else %}
-    <title>ShiftSync</title>
-    {% endif %}
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 
-    {% block styles %}
-        {% bootstrap_css %}
-    {% endblock %}
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <link rel="stylesheet" href="{% static 'css/main.css' %}">
+
+  {% block styles %}{% endblock %}
 </head>
-<body>
-    {% if user.is_authenticated %}
-    {% include "includes/navbar.html" %}
-    {% endif %}
-    <main>
-        <div class="container">
-            {% block content %}{% endblock %}
-        </div>
-    </main>
-    {% if user.is_authenticated %}
-    {% include "includes/footer.html" %}
-    {% endif %}
+<body class="bg-light d-flex flex-column min-vh-100">
 
-    {% block scripts %}
-        {% bootstrap_javascript %}
-    {% endblock %}
+  {% include "includes/navbar.html" %}
+
+  <main class="py-4 flex-grow-1">
+    <div class="container-xl">
+
+      {# Django messages (success/warning from redirects) #}
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show mb-3" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+
+      {% block content %}{% endblock %}
+
+    </div>
+  </main>
+
+  {% include "includes/footer.html" %}
+
+  <!-- Bootstrap 5 JS bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- HTMX -->
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  <!-- Alpine.js -->
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+
+  {% block scripts %}{% endblock %}
 </body>
 </html>

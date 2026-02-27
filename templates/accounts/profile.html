@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}My Profile — ShiftSync{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+
+    <div class="d-flex align-items-center mb-4 gap-3">
+      <div class="avatar-circle bg-primary text-white rounded-circle d-inline-flex align-items-center
+                  justify-content-center flex-shrink-0"
+           style="width:56px;height:56px;font-size:1.4rem;font-weight:700">
+        {{ user.first_name.0 }}{{ user.last_name.0 }}
+      </div>
+      <div>
+        <h1 class="h3 mb-0 fw-bold">{{ user.get_full_name }}</h1>
+        <span class="badge bg-secondary">{{ user.get_role_display }}</span>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white border-bottom py-3">
+        <h5 class="mb-0 fw-semibold"><i class="bi bi-person-fill me-2 text-primary"></i>Personal Details</h5>
+      </div>
+      <div class="card-body">
+        <div id="profile-feedback"></div>
+
+        <form hx-post="{% url 'accounts:profile' %}"
+              hx-target="#profile-feedback"
+              hx-swap="innerHTML">
+          {% csrf_token %}
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">First Name</label>
+              <input type="text" class="form-control" name="first_name" value="{{ user.first_name }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Last Name</label>
+              <input type="text" class="form-control" name="last_name" value="{{ user.last_name }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Email</label>
+              <input type="email" class="form-control" value="{{ user.email }}" disabled>
+              <div class="form-text">Email cannot be changed here.</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Phone Number</label>
+              <input type="tel" class="form-control" name="phone_number" value="{{ user.phone_number }}">
+            </div>
+          </div>
+
+          <hr class="my-4">
+
+          <h6 class="fw-semibold mb-3">Notification Preferences</h6>
+          <div class="d-flex flex-column gap-2">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" name="notify_in_app" id="notifyApp"
+                     {% if user.notify_in_app %}checked{% endif %}>
+              <label class="form-check-label" for="notifyApp">
+                <i class="bi bi-bell-fill me-1 text-primary"></i>In-app notifications
+              </label>
+            </div>
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" name="notify_email" id="notifyEmail"
+                     {% if user.notify_email %}checked{% endif %}>
+              <label class="form-check-label" for="notifyEmail">
+                <i class="bi bi-envelope-fill me-1 text-primary"></i>Email notifications (simulated)
+              </label>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary mt-4">
+            <i class="bi bi-save me-1"></i>Save Changes
+          </button>
+        </form>
+      </div>
+    </div>
+
+    {% if user.role == 'staff' %}
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white border-bottom py-3">
+        <h5 class="mb-0 fw-semibold"><i class="bi bi-tools me-2 text-success"></i>My Skills</h5>
+      </div>
+      <div class="card-body">
+        {% for skill in user.skills.all %}
+          <span class="badge bg-success me-1 mb-1 py-2 px-3">{{ skill.display_name }}</span>
+        {% empty %}
+          <p class="text-muted mb-0">No skills assigned yet. Contact your manager.</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-bottom py-3">
+        <h5 class="mb-0 fw-semibold"><i class="bi bi-geo-alt-fill me-2 text-info"></i>Certified Locations</h5>
+      </div>
+      <div class="card-body">
+        {% for cert in user.location_certifications.all %}
+          {% if cert.is_active %}
+            <span class="badge bg-info me-1 mb-1 py-2 px-3">{{ cert.location.name }}</span>
+          {% endif %}
+        {% empty %}
+          <p class="text-muted mb-0">No location certifications yet.</p>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block title %}{{ location.name }} — ShiftSync{% endblock %}
+
+{% block content %}
+
+{# ── Header ──────────────────────────────────────────────────────── #}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1 small">
+        <li class="breadcrumb-item">
+          <a href="{% url 'locations:list' %}">Locations</a>
+        </li>
+        <li class="breadcrumb-item active">{{ location.name }}</li>
+      </ol>
+    </nav>
+    <h1 class="h3 mb-0 fw-bold">
+      <i class="bi bi-geo-alt-fill me-2 text-primary"></i>{{ location.name }}
+    </h1>
+    <span class="badge bg-light text-dark border mt-1">
+      <i class="bi bi-clock me-1"></i>{{ location.timezone }}
+    </span>
+    {% if location.address %}
+      <span class="text-muted small ms-2">
+        <i class="bi bi-map me-1"></i>{{ location.address }}
+      </span>
+    {% endif %}
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'scheduling:schedule' %}" class="btn btn-primary btn-sm">
+      <i class="bi bi-calendar3 me-1"></i>View Schedule
+    </a>
+  </div>
+</div>
+
+{# ── Cert action feedback (HTMX target) ──────────────────────────── #}
+{% if messages %}
+  {% for message in messages %}
+  <div class="alert alert-{{ message.tags|default:'success' }} alert-dismissible fade show mb-3">
+    <i class="bi bi-check-circle-fill me-2"></i>{{ message }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endfor %}
+{% endif %}
+
+<div class="row g-4">
+
+  {# ── Left column: certified staff roster ─────────────────────────── #}
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-semibold">
+          <i class="bi bi-people-fill me-2 text-success"></i>Certified Staff
+        </h5>
+        <span class="badge bg-light text-dark border">{{ staff_data|length }} members</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Name</th>
+              <th>Skills</th>
+              <th class="text-center">Hours this week</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in staff_data %}
+            <tr>
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <div class="rounded-circle bg-primary text-white d-inline-flex
+                               align-items-center justify-content-center flex-shrink-0"
+                       style="width:32px;height:32px;font-size:.75rem;font-weight:700">
+                    {{ row.user.first_name.0 }}{{ row.user.last_name.0 }}
+                  </div>
+                  <div>
+                    <div class="fw-semibold small">{{ row.user.get_full_name }}</div>
+                    <div class="text-muted" style="font-size:.72rem">{{ row.user.email }}</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                {% for skill in row.user.skills.all %}
+                  <span class="badge bg-light text-dark border me-1" style="font-size:.7rem">
+                    {{ skill.display_name }}
+                  </span>
+                {% empty %}
+                  <span class="text-muted small">—</span>
+                {% endfor %}
+              </td>
+              <td class="text-center">
+                <div class="progress mx-auto mb-1" style="height:5px;width:70px">
+                  <div class="progress-bar
+                    {% if row.hours_this_week >= 40 %}bg-danger
+                    {% elif row.hours_this_week >= 35 %}bg-warning
+                    {% else %}bg-success{% endif %}"
+                    style="width:{{ row.hours_this_week|floatformat:0 }}%">
+                  </div>
+                </div>
+                <small class="text-muted">{{ row.hours_this_week|floatformat:1 }}h</small>
+              </td>
+              <td class="text-end">
+                {# Revoke certification form #}
+                <form method="post" action="{% url 'locations:certify' location.pk %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="revoke">
+                  <input type="hidden" name="user_id" value="{{ row.user.pk }}">
+                  <button type="submit"
+                          class="btn btn-sm btn-outline-danger"
+                          onclick="return confirm('Revoke {{ row.user.get_full_name }}\'s certification at {{ location.name }}?')">
+                    <i class="bi bi-x-circle me-1"></i>Revoke
+                  </button>
+                </form>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="4" class="text-center text-muted py-4">
+                <i class="bi bi-person-slash fs-3 d-block mb-2"></i>
+                No certified staff at this location yet.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {# Grant certification form #}
+      {% if certifiable_staff %}
+      <div class="card-footer bg-white border-top py-3">
+        <h6 class="fw-semibold mb-2">
+          <i class="bi bi-person-check-fill me-1 text-success"></i>Grant Certification
+        </h6>
+        <form method="post" action="{% url 'locations:certify' location.pk %}"
+             class="d-flex gap-2 flex-wrap align-items-end">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="grant">
+          <select name="user_id" class="form-select form-select-sm" style="max-width:220px" required>
+            <option value="" disabled selected>Select staff member…</option>
+            {% for member in certifiable_staff %}
+              <option value="{{ member.pk }}">{{ member.get_full_name }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn btn-sm btn-success">
+            <i class="bi bi-check-lg me-1"></i>Certify
+          </button>
+        </form>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+  {# ── Right column: upcoming shifts ───────────────────────────────── #}
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-bottom py-3">
+        <h5 class="mb-0 fw-semibold">
+          <i class="bi bi-calendar-check me-2 text-primary"></i>Upcoming Shifts This Week
+        </h5>
+      </div>
+      <div class="card-body p-0">
+        <ul class="list-group list-group-flush">
+          {% for shift in upcoming_shifts %}
+          <li class="list-group-item py-3">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="fw-semibold small">
+                  {{ shift.required_skill.display_name }}
+                  {% if shift.is_premium %}
+                    <i class="bi bi-star-fill text-warning ms-1" title="Premium shift"></i>
+                  {% endif %}
+                </div>
+                <div class="text-muted small">
+                  <i class="bi bi-clock me-1"></i>
+                  {{ shift.start_utc|date:"D, M j @ g:ia" }} –
+                  {{ shift.end_utc|date:"g:ia" }} UTC
+                </div>
+                {# Assigned staff initials #}
+                {% if shift.assignments.all %}
+                <div class="d-flex flex-wrap gap-1 mt-1">
+                  {% for a in shift.assignments.all %}
+                  <span class="rounded-circle bg-secondary text-white d-inline-flex
+                               align-items-center justify-content-center"
+                        style="width:22px;height:22px;font-size:.6rem;font-weight:700"
+                        title="{{ a.user.get_full_name }}">
+                    {{ a.user.first_name.0 }}{{ a.user.last_name.0 }}
+                  </span>
+                  {% endfor %}
+                </div>
+                {% endif %}
+              </div>
+              <span class="badge
+                {% if shift.is_fully_staffed %}bg-success
+                {% else %}bg-warning text-dark{% endif %}">
+                {{ shift.assigned_count }}/{{ shift.headcount_needed }}
+              </span>
+            </div>
+          </li>
+          {% empty %}
+          <li class="list-group-item text-center text-muted py-4">
+            <i class="bi bi-calendar-x fs-3 d-block mb-2"></i>
+            No published shifts scheduled this week.
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Swap Requests — ShiftSync{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-4 fw-bold"><i class="bi bi-arrow-left-right me-2 text-primary"></i>Swap Requests</h1>
+
+<div class="row g-4">
+
+  {# Requests I've received that need my acceptance #}
+  {% if received_requests %}
+  <div class="col-12">
+    <div class="alert alert-warning border-0 shadow-sm">
+      <h5 class="alert-heading"><i class="bi bi-bell-fill me-2"></i>Action Required</h5>
+      {% for swap in received_requests %}
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 {% if not forloop.last %}mb-3 pb-3 border-bottom{% endif %}">
+        <div>
+          <strong>{{ swap.requester.get_full_name }}</strong> wants to swap their
+          <strong>{{ swap.assignment.shift.required_skill.display_name }}</strong> shift
+          on {{ swap.assignment.shift.start_utc|date:"D, M j @ g:ia" }} UTC
+          <span class="text-muted small">(@ {{ swap.assignment.shift.location.name }})</span>
+        </div>
+        <div class="d-flex gap-2">
+          <form method="post" action="#">
+            {% csrf_token %}
+            <input type="hidden" name="swap_id" value="{{ swap.pk }}">
+            <button name="action" value="accept" class="btn btn-sm btn-success">
+              <i class="bi bi-check-lg me-1"></i>Accept
+            </button>
+            <button name="action" value="decline" class="btn btn-sm btn-outline-danger ms-1">
+              Decline
+            </button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# My outbound requests #}
+  <div class="col-12">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-bottom py-3">
+        <h5 class="mb-0 fw-semibold">My Requests</h5>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Type</th>
+              <th>Shift</th>
+              <th>With</th>
+              <th>Status</th>
+              <th>Submitted</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for swap in my_requests %}
+            <tr>
+              <td>
+                <span class="badge {% if swap.request_type == 'swap' %}bg-primary{% else %}bg-info text-dark{% endif %}">
+                  {{ swap.get_request_type_display }}
+                </span>
+              </td>
+              <td>
+                <div class="fw-semibold small">{{ swap.assignment.shift.required_skill.display_name }}</div>
+                <div class="text-muted small">
+                  {{ swap.assignment.shift.start_utc|date:"D, M j @ g:ia" }} UTC
+                  &middot; {{ swap.assignment.shift.location.name }}
+                </div>
+              </td>
+              <td class="small">{{ swap.target.get_full_name|default:"Open" }}</td>
+              <td>
+                <span class="badge
+                  {% if swap.status == 'approved' %}bg-success
+                  {% elif swap.status == 'rejected' or swap.status == 'cancelled' %}bg-danger
+                  {% elif swap.status == 'expired' %}bg-secondary
+                  {% else %}bg-warning text-dark{% endif %}">
+                  {{ swap.get_status_display }}
+                </span>
+              </td>
+              <td class="text-muted small">{{ swap.created_at|date:"M j, Y" }}</td>
+              <td>
+                {% if swap.is_pending %}
+                <form method="post" action="#">
+                  {% csrf_token %}
+                  <input type="hidden" name="swap_id" value="{{ swap.pk }}">
+                  <button name="action" value="cancel"
+                          class="btn btn-sm btn-outline-danger"
+                          onclick="return confirm('Cancel this request?')">
+                    Cancel
+                  </button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="6" class="text-center text-muted py-5">
+                No swap requests yet.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

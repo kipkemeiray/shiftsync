@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Audit Log — ShiftSync{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <h1 class="h3 mb-0 fw-bold"><i class="bi bi-journal-text me-2 text-primary"></i>Audit Log</h1>
+  <div class="d-flex gap-2 align-items-center">
+    <form method="get" class="d-flex gap-2">
+      <input type="search" name="action" class="form-control form-control-sm"
+             placeholder="Filter by action…" value="{{ action_filter }}">
+      <button type="submit" class="btn btn-sm btn-outline-secondary">Filter</button>
+    </form>
+    <a href="?export=csv{% if action_filter %}&action={{ action_filter }}{% endif %}"
+       class="btn btn-sm btn-outline-success">
+      <i class="bi bi-download me-1"></i>Export CSV
+    </a>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 small">
+      <thead class="table-light">
+        <tr>
+          <th>Timestamp</th>
+          <th>Actor</th>
+          <th>Action</th>
+          <th>Object</th>
+          <th>Note</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td class="text-nowrap text-muted">{{ log.created_at|date:"M j, Y H:i" }}</td>
+          <td>{{ log.actor.get_full_name|default:"System" }}</td>
+          <td><code class="small">{{ log.action }}</code></td>
+          <td class="text-muted">{{ log.content_type|default:"—" }} #{{ log.object_id|default:"—" }}</td>
+          <td class="text-muted">{{ log.note|default:"—"|truncatechars:60 }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="text-center text-muted py-5">No audit entries found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

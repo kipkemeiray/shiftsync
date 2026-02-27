@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Locations — ShiftSync{% endblock %}
+
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <h1 class="h3 mb-0 fw-bold">
+    <i class="bi bi-geo-alt-fill me-2 text-primary"></i>Locations
+  </h1>
+</div>
+
+<div class="row row-cols-1 row-cols-md-2 g-4">
+  {% for row in location_data %}
+  <div class="col">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+
+        {# Location name + timezone #}
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div>
+            <h5 class="fw-bold mb-1">{{ row.location.name }}</h5>
+            <span class="badge bg-light text-dark border">
+              <i class="bi bi-clock me-1"></i>{{ row.location.timezone }}
+            </span>
+          </div>
+          {# Coverage badge #}
+          {% if row.coverage_pct >= 100 %}
+            <span class="badge bg-success fs-6">{{ row.coverage_pct }}% covered</span>
+          {% elif row.coverage_pct >= 60 %}
+            <span class="badge bg-warning text-dark fs-6">{{ row.coverage_pct }}% covered</span>
+          {% else %}
+            <span class="badge bg-danger fs-6">{{ row.coverage_pct }}% covered</span>
+          {% endif %}
+        </div>
+
+        {# Stats row #}
+        <div class="row g-2 text-center mb-3">
+          <div class="col-4">
+            <div class="bg-light rounded p-2">
+              <div class="fw-bold fs-5">{{ row.staff_count }}</div>
+              <div class="text-muted small">Staff</div>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="bg-light rounded p-2">
+              <div class="fw-bold fs-5">{{ row.shift_count }}</div>
+              <div class="text-muted small">Shifts this week</div>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="bg-light rounded p-2">
+              <div class="fw-bold fs-5">{{ row.location.managers.count }}</div>
+              <div class="text-muted small">Managers</div>
+            </div>
+          </div>
+        </div>
+
+        {# Managers list #}
+        <div class="mb-3">
+          <div class="text-muted small fw-semibold mb-1">MANAGERS</div>
+          {% for mgr in row.location.managers.all %}
+            <span class="badge bg-secondary me-1">{{ mgr.get_full_name }}</span>
+          {% empty %}
+            <span class="text-muted small">No manager assigned</span>
+          {% endfor %}
+        </div>
+
+        {# Address #}
+        {% if row.location.address %}
+        <div class="text-muted small mb-3">
+          <i class="bi bi-map me-1"></i>{{ row.location.address }}
+        </div>
+        {% endif %}
+
+      </div>
+      <div class="card-footer bg-white border-top d-flex gap-2">
+        <a href="{% url 'locations:detail' row.location.pk %}"
+           class="btn btn-primary btn-sm flex-grow-1">
+          <i class="bi bi-eye me-1"></i>View Details
+        </a>
+        <a href="{% url 'scheduling:schedule' %}?location={{ row.location.pk }}"
+           class="btn btn-outline-secondary btn-sm flex-grow-1">
+          <i class="bi bi-calendar3 me-1"></i>Schedule
+        </a>
+      </div>
+    </div>
+  </div>
+  {% empty %}
+  <div class="col-12">
+    <div class="alert alert-info border-0 shadow-sm">
+      <i class="bi bi-info-circle me-2"></i>No active locations found.
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% endblock %}

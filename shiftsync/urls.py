@@ -1,28 +1,27 @@
 """
 ShiftSync root URL configuration.
 
-URL namespaces follow the pattern: app_name:view_name
-  - accounts:    login, logout, profile, availability
-  - scheduling:  dashboard, shifts, swaps
-  - notifications: center, preferences
-  - analytics:   fairness, overtime
-  - audit:       log, export
+Namespaces:
+  accounts:      login, logout, profile, availability, staff list
+  scheduling:    dashboard, schedule, my-shifts, swaps, on-duty
+  locations:     list, detail, certify
+  notifications: center, mark-read
+  analytics:     overview
+  audit:         log (+ CSV export)
 """
 
 from django.contrib import admin
 from django.http import JsonResponse
-from django.urls import include, path, re_path as url
+from django.urls import include, path
 from django.utils import timezone
 
 
 def health_check(request):
     """
-    Lightweight health check endpoint for Fly.io TCP/HTTP checks.
+    Lightweight liveness probe for Fly.io health checks.
 
-    Returns 200 OK with a JSON body confirming the app and DB are reachable.
-    Fly.io polls this every 10 seconds to decide if the machine is healthy.
+    Verifies the DB connection is reachable and returns 200/503.
     """
-    # Ping the database to catch connection issues early
     try:
         from django.db import connection
         connection.ensure_connection()
@@ -30,28 +29,24 @@ def health_check(request):
     except Exception:
         db_ok = False
 
-    status = 200 if db_ok else 503
     return JsonResponse(
-        {
-            "status": "ok" if db_ok else "degraded",
-            "db": db_ok,
-            "timestamp": timezone.now().isoformat(),
-        },
-        status=status,
+        {"status": "ok" if db_ok else "degraded", "db": db_ok,
+         "timestamp": timezone.now().isoformat()},
+        status=200 if db_ok else 503,
     )
 
 
 urlpatterns = [
-    # Fly.io health check (no auth required, must be fast)
     path("health/", health_check, name="health_check"),
-
-    # Django admin
     path("admin/", admin.site.urls),
 
-    # App modules
     path("accounts/", include("apps.accounts.urls", namespace="accounts")),
     path("", include("apps.scheduling.urls", namespace="scheduling")),
+    path("locations/", include("apps.locations.urls", namespace="locations")),
     path("notifications/", include("apps.notifications.urls", namespace="notifications")),
     path("analytics/", include("apps.analytics.urls", namespace="analytics")),
     path("audit/", include("apps.audit.urls", namespace="audit")),
 ]
+
+handler403 = "django.views.defaults.permission_denied"
+handler404 = "django.views.defaults.page_not_found"

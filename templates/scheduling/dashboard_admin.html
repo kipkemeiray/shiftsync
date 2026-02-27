@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard — ShiftSync{% endblock %}
+
+{% block content %}
+
+{# ── Page header ────────────────────────────────────────────────── #}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h1 class="h3 mb-0 fw-bold">
+      <i class="bi bi-speedometer2 me-2 text-primary"></i>Corporate Overview
+    </h1>
+    <p class="text-muted mb-0 small">All locations &mdash; {{ today|date:"l, F j, Y" }}</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'audit:log' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-journal-text me-1"></i>Audit Log
+    </a>
+    <a href="{% url 'analytics:overview' %}" class="btn btn-primary btn-sm">
+      <i class="bi bi-bar-chart-fill me-1"></i>Analytics
+    </a>
+  </div>
+</div>
+
+{# ── Platform-wide stat cards ────────────────────────────────────── #}
+<div class="row row-cols-2 row-cols-md-4 g-3 mb-4">
+  {% include "includes/stat_card.html" with icon="geo-alt-fill" label="Active Locations" value=total_locations color="primary" url="#locations-table" %}
+  {% include "includes/stat_card.html" with icon="people-fill" label="Total Staff" value=total_staff color="success" url="#staff-section" %}
+  {% include "includes/stat_card.html" with icon="calendar3" label="Shifts This Week" value=shifts_this_week color="info" url="#shifts-section" %}
+  {% include "includes/stat_card.html" with icon="exclamation-triangle-fill" label="Overtime Warnings" value=overtime_warnings color="warning" %}
+</div>
+
+{# ── On-duty now ─────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white border-bottom d-flex align-items-center justify-content-between py-3">
+    <h5 class="mb-0 fw-semibold">
+      <span class="badge bg-success me-2" style="font-size:.5rem;vertical-align:middle">●</span>
+      On Duty Now
+    </h5>
+    <span class="text-muted small">Updates live</span>
+  </div>
+  <div class="card-body p-0" id="on-duty-container"
+       hx-get="{% url 'scheduling:on_duty_now' %}"
+       hx-trigger="load, every 60s"
+       hx-swap="innerHTML">
+    <div class="text-center py-4 text-muted">
+      <div class="spinner-border spinner-border-sm me-2"></div>Loading…
+    </div>
+  </div>
+</div>
+
+{# ── Location summary table ──────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4" id="locations-table">
+  <div class="card-header bg-white border-bottom py-3">
+    <h5 class="mb-0 fw-semibold"><i class="bi bi-geo-alt-fill me-2 text-primary"></i>Locations</h5>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Location</th>
+          <th>Timezone</th>
+          <th>Manager(s)</th>
+          <th class="text-center">Staff</th>
+          <th class="text-center">Shifts This Week</th>
+          <th class="text-center">Coverage</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for loc in location_summaries %}
+        <tr>
+          <td class="fw-semibold">{{ loc.location.name }}</td>
+          <td><span class="badge bg-light text-dark border">{{ loc.location.timezone }}</span></td>
+          <td>
+            {% for mgr in loc.location.managers.all %}
+              <span class="badge bg-secondary">{{ mgr.get_full_name }}</span>
+            {% empty %}
+              <span class="text-muted small">Unassigned</span>
+            {% endfor %}
+          </td>
+          <td class="text-center">{{ loc.staff_count }}</td>
+          <td class="text-center">{{ loc.shift_count }}</td>
+          <td class="text-center">
+            {% if loc.coverage_pct >= 100 %}
+              <span class="badge bg-success">Full</span>
+            {% elif loc.coverage_pct >= 60 %}
+              <span class="badge bg-warning text-dark">{{ loc.coverage_pct }}%</span>
+            {% else %}
+              <span class="badge bg-danger">{{ loc.coverage_pct }}%</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="text-center text-muted py-4">No active locations.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# ── Bottom row: swap requests + recent audit ─────────────────────── #}
+<div class="row g-4">
+
+  {# Pending swap/drop requests needing attention #}
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-semibold"><i class="bi bi-arrow-left-right me-2 text-warning"></i>Pending Approvals</h5>
+        <span class="badge bg-warning text-dark">{{ pending_swaps|length }}</span>
+      </div>
+      <div class="card-body p-0">
+        <ul class="list-group list-group-flush">
+          {% for swap in pending_swaps %}
+          <li class="list-group-item d-flex justify-content-between align-items-start py-3">
+            <div>
+              <div class="fw-semibold small">{{ swap.requester.get_full_name }}</div>
+              <div class="text-muted small">
+                {{ swap.get_request_type_display }} &mdash;
+                {{ swap.assignment.shift.location.name }}
+              </div>
+              <div class="text-muted small">
+                {{ swap.assignment.shift.start_utc|date:"D, M j @ g:ia" }} UTC
+              </div>
+            </div>
+            <span class="badge bg-warning text-dark mt-1">{{ swap.get_status_display }}</span>
+          </li>
+          {% empty %}
+          <li class="list-group-item text-center text-muted py-4">
+            <i class="bi bi-check-circle-fill text-success me-1"></i>No pending approvals.
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  {# Recent audit log #}
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-semibold"><i class="bi bi-journal-text me-2 text-info"></i>Recent Activity</h5>
+        <a href="{% url 'audit:log' %}" class="btn btn-link btn-sm p-0">View all</a>
+      </div>
+      <div class="card-body p-0">
+        <ul class="list-group list-group-flush">
+          {% for entry in recent_audit %}
+          <li class="list-group-item py-2">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <span class="badge bg-light text-dark border small me-1">{{ entry.action }}</span>
+                <span class="small text-muted">by {{ entry.actor.get_full_name|default:"System" }}</span>
+              </div>
+              <span class="text-muted small text-nowrap">{{ entry.created_at|timesince }} ago</span>
+            </div>
+          </li>
+          {% empty %}
+          <li class="list-group-item text-center text-muted py-4">No recent activity.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}

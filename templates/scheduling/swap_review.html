@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Review Swap Request — ShiftSync{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-7">
+
+  <nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb small">
+      <li class="breadcrumb-item"><a href="{% url 'scheduling:dashboard' %}">Dashboard</a></li>
+      <li class="breadcrumb-item active">Review Swap Request</li>
+    </ol>
+  </nav>
+
+  <h1 class="h3 fw-bold mb-4">
+    <i class="bi bi-arrow-left-right me-2 text-primary"></i>Review Swap Request
+  </h1>
+
+  {# ── Request summary card ──────────────────────────────────────── #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white border-bottom py-3">
+      <h5 class="mb-0 fw-semibold">Request Details</h5>
+    </div>
+    <div class="card-body">
+      <dl class="row mb-0">
+        <dt class="col-sm-4 text-muted">Type</dt>
+        <dd class="col-sm-8">
+          <span class="badge {% if swap.request_type == 'swap' %}bg-primary{% else %}bg-info text-dark{% endif %} fs-6">
+            {{ swap.get_request_type_display }}
+          </span>
+        </dd>
+
+        <dt class="col-sm-4 text-muted">Requested by</dt>
+        <dd class="col-sm-8 fw-semibold">{{ swap.requester.get_full_name }}</dd>
+
+        <dt class="col-sm-4 text-muted">Shift</dt>
+        <dd class="col-sm-8">
+          <strong>{{ swap.assignment.shift.required_skill.display_name }}</strong>
+          at {{ swap.assignment.shift.location.name }}<br>
+          <span class="text-muted small">
+            <i class="bi bi-clock me-1"></i>
+            {{ swap.assignment.shift.start_utc|date:"l, F j, Y @ g:ia" }} –
+            {{ swap.assignment.shift.end_utc|date:"g:ia" }} UTC
+            ({{ swap.assignment.shift.duration_hours|floatformat:1 }}h)
+          </span>
+        </dd>
+
+        {% if swap.request_type == 'swap' and swap.target %}
+        <dt class="col-sm-4 text-muted">Swap with</dt>
+        <dd class="col-sm-8 fw-semibold">{{ swap.target.get_full_name }}</dd>
+
+        <dt class="col-sm-4 text-muted">Target accepted</dt>
+        <dd class="col-sm-8">
+          {% if swap.target_accepted_at %}
+            <span class="badge bg-success">Yes — {{ swap.target_accepted_at|date:"M j @ g:ia" }}</span>
+          {% else %}
+            <span class="badge bg-warning text-dark">Pending acceptance</span>
+          {% endif %}
+        </dd>
+        {% endif %}
+
+        <dt class="col-sm-4 text-muted">Status</dt>
+        <dd class="col-sm-8">
+          <span class="badge
+            {% if swap.status == 'approved' %}bg-success
+            {% elif swap.status == 'rejected' %}bg-danger
+            {% else %}bg-warning text-dark{% endif %}">
+            {{ swap.get_status_display }}
+          </span>
+        </dd>
+
+        {% if swap.requester_note %}
+        <dt class="col-sm-4 text-muted">Note from staff</dt>
+        <dd class="col-sm-8 fst-italic">"{{ swap.requester_note }}"</dd>
+        {% endif %}
+
+        <dt class="col-sm-4 text-muted">Submitted</dt>
+        <dd class="col-sm-8 text-muted small">{{ swap.created_at|date:"M j, Y @ g:ia" }}</dd>
+      </dl>
+    </div>
+  </div>
+
+  {# ── Action form — only shown if still pending ─────────────────── #}
+  {% if swap.status == 'pending_manager' or swap.status == 'pending_acceptance' %}
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-bottom py-3">
+      <h5 class="mb-0 fw-semibold">Your Decision</h5>
+    </div>
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        <div class="mb-4">
+          <label class="form-label fw-semibold">Note (optional — shown to staff on rejection)</label>
+          <textarea class="form-control" name="note" rows="3"
+                    placeholder="e.g. Please find your own coverage first…"></textarea>
+        </div>
+        <div class="d-flex gap-3">
+          <button type="submit" name="action" value="approve"
+                  class="btn btn-success flex-grow-1">
+            <i class="bi bi-check-lg me-2"></i>Approve
+          </button>
+          <button type="submit" name="action" value="reject"
+                  class="btn btn-danger flex-grow-1">
+            <i class="bi bi-x-lg me-2"></i>Reject
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% else %}
+  <div class="alert border-0 shadow-sm
+    {% if swap.status == 'approved' %}alert-success{% else %}alert-danger{% endif %}">
+    <i class="bi bi-{% if swap.status == 'approved' %}check-circle-fill{% else %}x-circle-fill{% endif %} me-2"></i>
+    This request was already <strong>{{ swap.get_status_display }}</strong>
+    {% if swap.manager_reviewed_at %}on {{ swap.manager_reviewed_at|date:"M j @ g:ia" }}{% endif %}.
+    {% if swap.manager_note %}
+      <div class="mt-1 fst-italic small">"{{ swap.manager_note }}"</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+</div>
+</div>
+{% endblock %}

@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block title %}Manager Dashboard — ShiftSync{% endblock %}
+
+{% block content %}
+
+{# ── Page header ────────────────────────────────────────────────── #}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h1 class="h3 mb-0 fw-bold">
+      <i class="bi bi-speedometer2 me-2 text-primary"></i>Manager Dashboard
+    </h1>
+    <p class="text-muted mb-0 small">
+      {{ today|date:"l, F j, Y" }} &mdash;
+      {% for loc in managed_locations %}
+        <span class="badge bg-secondary">{{ loc.name }}</span>
+      {% endfor %}
+    </p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'scheduling:schedule' %}" class="btn btn-primary btn-sm">
+      <i class="bi bi-calendar3 me-1"></i>Manage Schedule
+    </a>
+  </div>
+</div>
+
+{# ── Stat cards ──────────────────────────────────────────────────── #}
+<div class="row row-cols-2 row-cols-md-4 g-3 mb-4">
+  {% include "includes/stat_card.html" with icon="people-fill" label="My Staff" value=total_staff color="primary" %}
+  {% include "includes/stat_card.html" with icon="calendar-check" label="Shifts This Week" value=shifts_this_week color="success" %}
+  {% include "includes/stat_card.html" with icon="person-exclamation" label="Understaffed Shifts" value=understaffed_count color="warning" %}
+  {% include "includes/stat_card.html" with icon="arrow-left-right" label="Pending Approvals" value=pending_swaps|length color="danger" %}
+</div>
+
+{# ── On-duty now ─────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white border-bottom d-flex align-items-center justify-content-between py-3">
+    <h5 class="mb-0 fw-semibold">
+      <span class="badge bg-success me-2" style="font-size:.5rem;vertical-align:middle">●</span>
+      On Duty Now
+    </h5>
+    <span class="text-muted small">Refreshes every 60s</span>
+  </div>
+  <div class="card-body p-0" id="on-duty-container"
+       hx-get="{% url 'scheduling:on_duty_now' %}"
+       hx-trigger="load, every 60s"
+       hx-swap="innerHTML">
+    <div class="text-center py-4 text-muted">
+      <div class="spinner-border spinner-border-sm me-2"></div>Loading…
+    </div>
+  </div>
+</div>
+
+{# ── Upcoming understaffed shifts + pending swaps ─────────────────── #}
+<div class="row g-4 mb-4">
+
+  {# Understaffed / open shifts #}
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-semibold">
+          <i class="bi bi-exclamation-circle-fill me-2 text-warning"></i>Needs Coverage
+        </h5>
+        <a href="{% url 'scheduling:schedule' %}" class="btn btn-link btn-sm p-0">View full schedule</a>
+      </div>
+      <div class="card-body p-0">
+        <ul class="list-group list-group-flush">
+          {% for shift in understaffed_shifts %}
+          <li class="list-group-item py-3">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="fw-semibold">
+                  {{ shift.required_skill.display_name }}
+                  <span class="text-muted small ms-1">@ {{ shift.location.name }}</span>
+                </div>
+                <div class="text-muted small">
+                  <i class="bi bi-clock me-1"></i>
+                  {{ shift.start_utc|date:"D, M j @ g:ia" }} &mdash; {{ shift.end_utc|date:"g:ia" }} UTC
+                </div>
+                <div class="small mt-1">
+                  <span class="badge bg-danger">
+                    {{ shift.assigned_count }}/{{ shift.headcount_needed }} filled
+                  </span>
+                </div>
+              </div>
+              <a href="{% url 'scheduling:schedule' %}?shift={{ shift.pk }}"
+                 class="btn btn-sm btn-outline-primary text-nowrap">
+                <i class="bi bi-person-plus me-1"></i>Assign
+              </a>
+            </div>
+          </li>
+          {% empty %}
+          <li class="list-group-item text-center text-muted py-4">
+            <i class="bi bi-check-circle-fill text-success me-1"></i>All shifts fully staffed.
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  {# Pending swap/drop requests #}
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-semibold">
+          <i class="bi bi-arrow-left-right me-2 text-info"></i>Pending Approvals
+        </h5>
+        <span class="badge bg-danger rounded-pill">{{ pending_swaps|length }}</span>
+      </div>
+      <div class="card-body p-0">
+        <ul class="list-group list-group-flush">
+          {% for swap in pending_swaps %}
+          <li class="list-group-item py-3">
+            <div class="fw-semibold small">{{ swap.requester.get_full_name }}</div>
+            <div class="text-muted small">
+              {{ swap.get_request_type_display }} request &mdash;
+              {{ swap.assignment.shift.location.name }}
+            </div>
+            <div class="text-muted small">
+              {{ swap.assignment.shift.start_utc|date:"D, M j @ g:ia" }} UTC
+            </div>
+            <div class="mt-2 d-flex gap-2">
+              <a href="{% url 'scheduling:swap_review' swap.pk %}"
+                 class="btn btn-sm btn-success">
+                <i class="bi bi-check-lg me-1"></i>Review
+              </a>
+            </div>
+          </li>
+          {% empty %}
+          <li class="list-group-item text-center text-muted py-4">
+            <i class="bi bi-check-circle-fill text-success me-1"></i>
+            Nothing awaiting approval.
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{# ── This week's overtime watch ───────────────────────────────────── #}
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white border-bottom py-3">
+    <h5 class="mb-0 fw-semibold">
+      <i class="bi bi-clock-history me-2 text-danger"></i>Overtime Watch — This Week
+    </h5>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Staff Member</th>
+          <th>Skills</th>
+          <th class="text-center">Hours This Week</th>
+          <th class="text-center">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in staff_hours %}
+        <tr>
+          <td class="fw-semibold">{{ row.user.get_full_name }}</td>
+          <td>
+            {% for skill in row.user.skills.all %}
+              <span class="badge bg-light text-dark border">{{ skill.display_name }}</span>
+            {% endfor %}
+          </td>
+          <td class="text-center">
+            <div class="progress" style="height:8px;min-width:100px">
+              <div class="progress-bar
+                           {% if row.hours >= 40 %}bg-danger
+                           {% elif row.hours >= 35 %}bg-warning
+                           {% else %}bg-success{% endif %}"
+                   style="width:{{ row.hours|floatformat:0|add:'0' }}%"
+                   role="progressbar"
+                   aria-valuenow="{{ row.hours }}" aria-valuemin="0" aria-valuemax="40">
+              </div>
+            </div>
+            <small class="text-muted">{{ row.hours|floatformat:1 }}h / 40h</small>
+          </td>
+          <td class="text-center">
+            {% if row.hours >= 40 %}
+              <span class="badge bg-danger">Overtime</span>
+            {% elif row.hours >= 35 %}
+              <span class="badge bg-warning text-dark">Warning</span>
+            {% else %}
+              <span class="badge bg-success">OK</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="4" class="text-center text-muted py-4">No staff assigned this week.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

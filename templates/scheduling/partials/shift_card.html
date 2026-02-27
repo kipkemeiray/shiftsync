@@ -1,0 +1,39 @@
+
+<div class="card border {{ shift.css_border }} mb-1" style="font-size:.78rem">
+  <div class="card-body p-2">
+
+    {# Time range + premium star #}
+    <div class="fw-semibold text-nowrap lh-1 mb-1">
+      {{ shift.start_utc|date:"g:ia" }}–{{ shift.end_utc|date:"g:ia" }}
+      {% if shift.is_premium %}
+        <i class="bi bi-star-fill text-warning ms-1" title="Premium shift"></i>
+      {% endif %}
+    </div>
+
+    {# Skill + coverage badge #}
+    <div class="d-flex justify-content-between align-items-center">
+      <span class="text-muted" style="font-size:.72rem">
+        {{ shift.required_skill.display_name }}
+      </span>
+      <span class="badge {{ shift.css_badge }}" style="font-size:.65rem">
+        {{ shift.assigned_count }}/{{ shift.headcount_needed }}
+      </span>
+    </div>
+
+    {# Assigned staff initials #}
+    {% if shift.assignments.all %}
+    <div class="d-flex flex-wrap gap-1 mt-1">
+      {% for a in shift.assignments.all %}
+        {% if a.status == 'assigned' or a.status == 'swap_pending' %}
+        <span class="rounded-circle bg-dark text-white d-inline-flex align-items-center justify-content-center"
+              style="width:20px;height:20px;font-size:.58rem;font-weight:700;flex-shrink:0"
+              title="{{ a.user.get_full_name }}{% if a.status == 'swap_pending' %} (swap pending){% endif %}">
+          {{ a.user.first_name.0 }}{{ a.user.last_name.0 }}
+        </span>
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+  </div>
+</div>

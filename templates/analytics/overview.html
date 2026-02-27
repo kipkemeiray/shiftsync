@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Analytics — ShiftSync{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h1 class="h3 mb-0 fw-bold"><i class="bi bi-bar-chart-fill me-2 text-primary"></i>Analytics</h1>
+    <p class="text-muted mb-0 small">
+      Period: {{ period_start|date:"M j" }} &mdash; today &middot;
+      {{ range_weeks }} week{% if range_weeks != 1 %}s{% endif %}
+    </p>
+  </div>
+  <form method="get" class="d-flex align-items-center gap-2">
+    <label class="small text-muted">Period</label>
+    <select name="weeks" class="form-select form-select-sm" style="width:130px" onchange="this.form.submit()">
+      <option value="2"  {% if range_weeks == 2  %}selected{% endif %}>2 weeks</option>
+      <option value="4"  {% if range_weeks == 4  %}selected{% endif %}>4 weeks</option>
+      <option value="8"  {% if range_weeks == 8  %}selected{% endif %}>8 weeks</option>
+      <option value="12" {% if range_weeks == 12 %}selected{% endif %}>12 weeks</option>
+    </select>
+  </form>
+</div>
+
+{# ── Summary stat cards ──────────────────────────────────────────── #}
+<div class="row row-cols-2 row-cols-md-3 g-3 mb-4">
+  {% include "includes/stat_card.html" with icon="people-fill" label="Staff Tracked" value=analytics_data|length color="primary" %}
+  {% include "includes/stat_card.html" with icon="star-fill" label="Premium Shifts" value=total_premium color="warning" %}
+  {% include "includes/stat_card.html" with icon="pie-chart-fill" label="Fair Share (per staff)" value=fair_share color="info" %}
+</div>
+
+{# ── Fairness table ──────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white border-bottom py-3">
+    <h5 class="mb-0 fw-semibold">
+      <i class="bi bi-bar-chart-steps me-2 text-primary"></i>Hours &amp; Premium Shift Distribution
+    </h5>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Staff Member</th>
+          <th class="text-center">Total Hours</th>
+          <th class="text-center">vs. Desired</th>
+          <th class="text-center">Total Shifts</th>
+          <th class="text-center">Premium Shifts</th>
+          <th class="text-center">vs. Fair Share</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in analytics_data %}
+        <tr>
+          <td>
+            <div class="fw-semibold">{{ row.user.get_full_name }}</div>
+            <div class="text-muted small">
+              {% for skill in row.user.skills.all %}
+                <span class="me-1">{{ skill.display_name }}</span>
+              {% endfor %}
+            </div>
+          </td>
+          <td class="text-center fw-bold">{{ row.total_hours }}h</td>
+          <td class="text-center">
+            {% if row.desired_hours_period > 0 %}
+              {% with diff=row.total_hours|add:0 %}
+              {% if row.total_hours > row.desired_hours_period %}
+                <span class="text-danger small">
+                  +{{ row.total_hours|floatformat:0|add:"-0" }}h over
+                </span>
+              {% elif row.total_hours < row.desired_hours_period %}
+                <span class="text-warning small">
+                  Under by {{ row.desired_hours_period }}h desired
+                </span>
+              {% else %}
+                <span class="text-success small">On target</span>
+              {% endif %}
+              {% endwith %}
+            {% else %}
+              <span class="text-muted small">—</span>
+            {% endif %}
+          </td>
+          <td class="text-center">{{ row.total_shifts }}</td>
+          <td class="text-center">
+            <span class="badge {% if row.premium_shifts > 0 %}bg-warning text-dark{% else %}bg-light text-dark border{% endif %}">
+              <i class="bi bi-star-fill me-1"></i>{{ row.premium_shifts }}
+            </span>
+          </td>
+          <td class="text-center">
+            {% if fair_share > 0 %}
+              {% if row.premium_shifts > fair_share %}
+                <span class="badge bg-danger">+{{ row.premium_shifts }} (over)</span>
+              {% elif row.premium_shifts < fair_share %}
+                <span class="badge bg-warning text-dark">{{ row.premium_shifts }} (under)</span>
+              {% else %}
+                <span class="badge bg-success">Fair</span>
+              {% endif %}
+            {% else %}
+              <span class="text-muted small">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="text-center text-muted py-5">No data for this period.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

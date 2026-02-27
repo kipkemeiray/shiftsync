@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Notifications — ShiftSync{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h1 class="h3 mb-0 fw-bold">
+      <i class="bi bi-bell-fill me-2 text-primary"></i>Notifications
+    </h1>
+    <p class="text-muted mb-0 small">{{ unread_count }} unread</p>
+  </div>
+
+  {# Plain POST form — no HTMX needed, view redirects back here #}
+  {% if unread_count > 0 %}
+  <form method="post" action="{% url 'notifications:mark_read' %}">
+    {% csrf_token %}
+    <input type="hidden" name="notification_id" value="all">
+    <button type="submit" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-check2-all me-1"></i>Mark all read
+    </button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <ul class="list-group list-group-flush">
+      {% for notif in notifications %}
+      <li class="list-group-item py-3
+                 {% if not notif.is_read %}bg-primary bg-opacity-5 border-start border-primary border-3{% endif %}">
+        <div class="d-flex justify-content-between align-items-start gap-3">
+          <div>
+            <div class="fw-semibold {% if not notif.is_read %}text-primary{% endif %}">
+              {{ notif.title }}
+            </div>
+            <div class="text-muted small mt-1">{{ notif.body }}</div>
+          </div>
+          <div class="text-end text-nowrap flex-shrink-0">
+            <div class="text-muted small">{{ notif.created_at|timesince }} ago</div>
+            {% if not notif.is_read %}
+            <form method="post" action="{% url 'notifications:mark_read' %}" class="d-inline">
+              {% csrf_token %}
+              <input type="hidden" name="notification_id" value="{{ notif.pk }}">
+              <button type="submit" class="btn btn-link btn-sm p-0 mt-1 text-primary">
+                Mark read
+              </button>
+            </form>
+            {% else %}
+            <span class="badge bg-light text-muted border mt-1" style="font-size:.65rem">Read</span>
+            {% endif %}
+          </div>
+        </div>
+      </li>
+      {% empty %}
+      <li class="list-group-item text-center text-muted py-5">
+        <i class="bi bi-bell-slash fs-2 d-block mb-2"></i>
+        You're all caught up — no notifications.
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endblock %}

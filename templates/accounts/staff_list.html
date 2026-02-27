@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Staff — ShiftSync{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <h1 class="h3 mb-0 fw-bold"><i class="bi bi-people-fill me-2 text-primary"></i>Staff</h1>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white border-bottom py-3">
+    <input type="search" class="form-control form-control-sm w-auto d-inline-block"
+           placeholder="Filter by name…"
+           oninput="filterStaff(this.value)">
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0" id="staff-table">
+      <thead class="table-light">
+        <tr>
+          <th>Name</th>
+          <th>Skills</th>
+          <th>Locations</th>
+          <th class="text-center">Hours This Week</th>
+          <th class="text-center">Desired h/wk</th>
+          <th class="text-center">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in staff_data %}
+        <tr class="staff-row">
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <div class="avatar-circle bg-primary text-white rounded-circle d-inline-flex
+                          align-items-center justify-content-center flex-shrink-0"
+                   style="width:34px;height:34px;font-size:.8rem;font-weight:600">
+                {{ row.user.first_name.0 }}{{ row.user.last_name.0 }}
+              </div>
+              <div>
+                <div class="fw-semibold staff-name">{{ row.user.get_full_name }}</div>
+                <div class="text-muted small">{{ row.user.email }}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            {% for skill in row.user.skills.all %}
+              <span class="badge bg-light text-dark border me-1">{{ skill.display_name }}</span>
+            {% empty %}
+              <span class="text-muted small">—</span>
+            {% endfor %}
+          </td>
+          <td>
+            {% for cert in row.user.location_certifications.all %}
+              {% if cert.is_active %}
+                <span class="badge bg-info text-dark me-1">{{ cert.location.name }}</span>
+              {% endif %}
+            {% empty %}
+              <span class="text-muted small">—</span>
+            {% endfor %}
+          </td>
+          <td class="text-center">
+            <div class="progress mx-auto" style="height:6px;width:80px">
+              <div class="progress-bar
+                          {% if row.hours_this_week >= 40 %}bg-danger
+                          {% elif row.hours_this_week >= 35 %}bg-warning
+                          {% else %}bg-success{% endif %}"
+                   style="width:{{ row.hours_this_week|floatformat:0 }}%"></div>
+            </div>
+            <small class="text-muted">{{ row.hours_this_week|floatformat:1 }}h</small>
+          </td>
+          <td class="text-center text-muted">{{ row.user.desired_hours_per_week }}h</td>
+          <td class="text-center">
+            {% if row.hours_this_week >= 40 %}
+              <span class="badge bg-danger">Overtime</span>
+            {% elif row.hours_this_week >= 35 %}
+              <span class="badge bg-warning text-dark">Near limit</span>
+            {% else %}
+              <span class="badge bg-success">OK</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="text-center text-muted py-5">No staff found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterStaff(query) {
+  /** Filter staff table rows by name using client-side search. */
+  const q = query.toLowerCase();
+  document.querySelectorAll('.staff-row').forEach(row => {
+    const name = row.querySelector('.staff-name').textContent.toLowerCase();
+    row.style.display = name.includes(q) ? '' : 'none';
+  });
+}
+</script>
+{% endblock %}

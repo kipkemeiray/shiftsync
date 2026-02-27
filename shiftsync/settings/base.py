@@ -218,3 +218,10 @@ SHIFTSYNC = {
 }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+CORS_ALLOW_ALL_ORIGINS = True
+
+#  Allowed hosts
+APP_NAME = os.environ.get("FLY_APP_NAME")
+
+ALLOWED_HOSTS = [f"https://{APP_NAME}.fly.dev", f"{APP_NAME}.fly.dev", 'localhost', '127.0.0.1']

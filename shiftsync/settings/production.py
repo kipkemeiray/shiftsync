@@ -18,10 +18,10 @@ SECURE_HSTS_PRELOAD = True
 
 # Fly apps get a *.fly.dev domain by default.
 # Add your custom domain here too if you attach one.
-ALLOWED_HOSTS = env.list(
-    "ALLOWED_HOSTS",
-    default=["shiftsync.fly.dev", "localhost", "*"],
-)
+# ALLOWED_HOSTS = env.list(
+#     "ALLOWED_HOSTS",
+#     default=["shiftsync.fly.dev", "localhost", "*"],
+# )
 
 # Email: simulated via console for the demo (no SMTP needed)
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
@@ -49,5 +49,9 @@ LOGGING = {
     "loggers": {
         "django": {"handlers": ["console"], "level": "INFO", "propagate": False},
         "apps": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "django.security.DisallowedHost": {
+            "handlers": ["null"],
+            "propagate": False,
+        },
     },
 }

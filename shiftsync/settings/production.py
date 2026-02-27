@@ -7,12 +7,6 @@ from .base import *  # noqa: F401, F403
 
 DEBUG = False
 
-# Fly.io terminates TLS at the edge proxy, then forwards internally via HTTP.
-# Do NOT redirect HTTP→HTTPS ourselves (Fly already handles that).
-# Trust the X-Forwarded-Proto header that Fly injects on every request.
-SECURE_SSL_REDIRECT = False
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-
 # Cookie security — enforce secure cookies (Fly guarantees HTTPS externally)
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
@@ -27,12 +21,6 @@ SECURE_HSTS_PRELOAD = True
 ALLOWED_HOSTS = env.list(
     "ALLOWED_HOSTS",
     default=["shiftsync.fly.dev", "localhost", "*"],
-)
-
-# CSRF trusted origins must match the public URL(s) the app is served from
-CSRF_TRUSTED_ORIGINS = env.list(
-    "CSRF_TRUSTED_ORIGINS",
-    default=["https://shiftsync.fly.dev", 'shiftsync.fly.dev', "*"],
 )
 
 # Email: simulated via console for the demo (no SMTP needed)

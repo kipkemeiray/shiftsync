@@ -1,0 +1,322 @@
+{% extends "base.html" %}
+{% block title %}Manage Shifts — ShiftSync{% endblock %}
+
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h1 class="h3 fw-bold mb-0">
+      <i class="bi bi-pencil-square me-2 text-primary"></i>Manage Shifts
+    </h1>
+    <p class="text-muted mb-0 small">Create shifts, assign staff, and publish the schedule.</p>
+  </div>
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createShiftModal">
+    <i class="bi bi-plus-lg me-1"></i>New Shift
+  </button>
+</div>
+
+{% if messages %}
+  {% for message in messages %}
+  <div class="alert alert-{{ message.tags|default:'success' }} alert-dismissible fade show mb-3">
+    <i class="bi bi-check-circle-fill me-2"></i>{{ message }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endfor %}
+{% endif %}
+
+{# ── Filter bar ──────────────────────────────────────────────────── #}
+<form method="get" class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3 d-flex gap-3 align-items-end flex-wrap">
+    <div>
+      <label class="form-label small fw-semibold mb-1">Location</label>
+      <select name="location" class="form-select form-select-sm" style="width:200px">
+        <option value="">All locations</option>
+        {% for loc in managed_locations %}
+        <option value="{{ loc.pk }}" {% if selected_location_id == loc.pk %}selected{% endif %}>
+          {{ loc.name }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="form-label small fw-semibold mb-1">Week</label>
+      <input type="date" name="from_date" class="form-control form-control-sm"
+             value="{{ from_date|date:'Y-m-d' }}">
+    </div>
+    <div>
+      <label class="form-label small fw-semibold mb-1">Status</label>
+      <select name="status" class="form-select form-select-sm" style="width:150px">
+        <option value="">All</option>
+        <option value="draft"     {% if status_filter == 'draft' %}selected{% endif %}>Draft only</option>
+        <option value="published" {% if status_filter == 'published' %}selected{% endif %}>Published only</option>
+        <option value="understaffed" {% if status_filter == 'understaffed' %}selected{% endif %}>Understaffed</option>
+      </select>
+    </div>
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-sm btn-outline-secondary">Filter</button>
+      <a href="{% url 'scheduling:shift_manage' %}" class="btn btn-sm btn-link text-muted">Reset</a>
+    </div>
+  </div>
+</form>
+
+{# ── Bulk publish banner ─────────────────────────────────────────── #}
+{% if unpublished_count > 0 %}
+<div class="alert alert-warning border-0 shadow-sm d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+    <strong>{{ unpublished_count }} draft shift{{ unpublished_count|pluralize }}</strong>
+    not yet visible to staff.
+  </div>
+  <form method="post" action="{% url 'scheduling:publish_week' %}">
+    {% csrf_token %}
+    <input type="hidden" name="from_date" value="{{ from_date|date:'Y-m-d' }}">
+    <input type="hidden" name="location" value="{{ selected_location_id|default:'' }}">
+    <button type="submit" class="btn btn-warning btn-sm">
+      <i class="bi bi-send-fill me-1"></i>Publish All Drafts
+    </button>
+  </form>
+</div>
+{% endif %}
+
+{# ── Shifts table ────────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Shift</th>
+          <th>Location</th>
+          <th>Date & Time (UTC)</th>
+          <th class="text-center">Filled</th>
+          <th class="text-center">Published</th>
+          <th class="text-center">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for shift in shifts %}
+        <tr>
+          <td>
+            <div class="fw-semibold">{{ shift.required_skill.display_name }}</div>
+            <div class="text-muted small">{{ shift.duration_hours|floatformat:1 }}h
+              {% if shift.is_premium %}
+                <span class="badge bg-warning text-dark ms-1">
+                  <i class="bi bi-star-fill me-1"></i>Premium
+                </span>
+              {% endif %}
+            </div>
+          </td>
+          <td class="small text-muted">{{ shift.location.name }}</td>
+          <td class="small">
+            {{ shift.start_utc|date:"D, M j" }}<br>
+            <span class="text-muted">{{ shift.start_utc|date:"g:ia" }} – {{ shift.end_utc|date:"g:ia" }}</span>
+          </td>
+          <td class="text-center">
+            <span class="badge
+              {% if shift.is_fully_staffed %}bg-success
+              {% elif shift.assigned_count == 0 %}bg-danger
+              {% else %}bg-warning text-dark{% endif %}">
+              {{ shift.assigned_count }}/{{ shift.headcount_needed }}
+            </span>
+            {# Show assigned names #}
+            {% if shift.assignments.all %}
+            <div class="mt-1">
+              {% for a in shift.assignments.all %}
+                <small class="text-muted d-block">{{ a.user.get_full_name }}</small>
+              {% endfor %}
+            </div>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            {% if shift.is_published %}
+              <span class="badge bg-success"><i class="bi bi-check-lg me-1"></i>Published</span>
+            {% else %}
+              <span class="badge bg-secondary">Draft</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            <div class="btn-group btn-group-sm">
+              {# Assign staff button #}
+              <button class="btn btn-outline-primary"
+                      data-bs-toggle="modal"
+                      data-bs-target="#assignModal"
+                      data-shift-id="{{ shift.pk }}"
+                      data-shift-label="{{ shift.required_skill.display_name }} — {{ shift.start_utc|date:'D M j @ g:ia' }} UTC"
+                      data-skill-id="{{ shift.required_skill.pk }}"
+                      data-location-id="{{ shift.location.pk }}"
+                      title="Assign staff">
+                <i class="bi bi-person-plus"></i>
+              </button>
+
+              {# Publish/unpublish toggle #}
+              <form method="post" action="{% url 'scheduling:toggle_publish' shift.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-secondary" title="Toggle publish">
+                  {% if shift.is_published %}
+                    <i class="bi bi-eye-slash"></i>
+                  {% else %}
+                    <i class="bi bi-send"></i>
+                  {% endif %}
+                </button>
+              </form>
+
+              {# Delete draft shift #}
+              {% if not shift.is_published %}
+              <form method="post" action="{% url 'scheduling:delete_shift' shift.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-danger"
+                        onclick="return confirm('Delete this draft shift?')"
+                        title="Delete shift">
+                  <i class="bi bi-trash3"></i>
+                </button>
+              </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="text-center text-muted py-5">
+            <i class="bi bi-calendar-x fs-2 d-block mb-2"></i>
+            No shifts found for this filter. Create one with the button above.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# ── Create shift modal ───────────────────────────────────────────── #}
+<div class="modal fade" id="createShiftModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" action="{% url 'scheduling:create_shift' %}">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Create New Shift</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-semibold">Location</label>
+              <select name="location_id" class="form-select" required>
+                <option value="" disabled selected>Select location…</option>
+                {% for loc in managed_locations %}
+                  <option value="{{ loc.pk }}">{{ loc.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Required Skill</label>
+              <select name="skill_id" class="form-select" required>
+                <option value="" disabled selected>Select skill…</option>
+                {% for skill in all_skills %}
+                  <option value="{{ skill.pk }}">{{ skill.display_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Start (UTC)</label>
+              <input type="datetime-local" name="start_utc" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">End (UTC)</label>
+              <input type="datetime-local" name="end_utc" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Staff Needed</label>
+              <input type="number" name="headcount_needed" class="form-control"
+                     min="1" max="20" value="1" required>
+            </div>
+            <div class="col-md-6 d-flex align-items-end">
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" name="publish_immediately" id="publishNow">
+                <label class="form-check-label" for="publishNow">Publish immediately</label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i>Create Shift
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# ── Assign staff modal ───────────────────────────────────────────── #}
+<div class="modal fade" id="assignModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" action="{% url 'scheduling:assign_staff' %}">
+        {% csrf_token %}
+        <input type="hidden" name="shift_id" id="assignShiftId">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-person-plus me-2"></i>Assign Staff</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted small mb-3" id="assignShiftLabel"></p>
+
+          {# Available staff grouped by location cert and skill match #}
+          <label class="form-label fw-semibold">Select Staff Member</label>
+          <select name="user_id" class="form-select" id="assignStaffSelect" required>
+            <option value="" disabled selected>Loading…</option>
+          </select>
+          <div class="form-text">Only certified, qualified staff at this location are shown.</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg me-1"></i>Assign
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+/**
+ * When the assign modal opens, populate the staff dropdown with qualified
+ * staff for the selected shift (passed via data attributes on the trigger button).
+ * We embed the full staff data as JSON to avoid a separate AJAX call.
+ */
+const staffByLocationAndSkill = {{ staff_json|safe }};
+
+document.getElementById('assignModal').addEventListener('show.bs.modal', function(e) {
+  const btn = e.relatedTarget;
+  const shiftId    = btn.dataset.shiftId;
+  const shiftLabel = btn.dataset.shiftLabel;
+  const skillId    = parseInt(btn.dataset.skillId);
+  const locationId = parseInt(btn.dataset.locationId);
+
+  document.getElementById('assignShiftId').value   = shiftId;
+  document.getElementById('assignShiftLabel').textContent = shiftLabel;
+
+  const select = document.getElementById('assignStaffSelect');
+  select.innerHTML = '<option value="" disabled selected>Select staff member…</option>';
+
+  const key = locationId + '-' + skillId;
+  const candidates = staffByLocationAndSkill[key] || [];
+
+  if (candidates.length === 0) {
+    select.innerHTML = '<option value="" disabled selected>No qualified staff available</option>';
+  } else {
+    candidates.forEach(function(s) {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = s.name + ' (' + s.hours + 'h this week)';
+      select.appendChild(opt);
+    });
+  }
+});
+</script>
+{% endblock %}

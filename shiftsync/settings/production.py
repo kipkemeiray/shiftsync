@@ -26,7 +26,7 @@ SECURE_HSTS_PRELOAD = True
 # Add your custom domain here too if you attach one.
 ALLOWED_HOSTS = env.list(
     "ALLOWED_HOSTS",
-    default=["shiftsync.fly.dev", "localhost", "172.19.32.82"],
+    default=["shiftsync.fly.dev", "localhost", "*"],
 )
 
 # CSRF trusted origins must match the public URL(s) the app is served from

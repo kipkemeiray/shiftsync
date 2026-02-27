@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+{% load scheduling_tags %}
+{% block title %}My Availability — ShiftSync{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h1 class="h3 mb-0 fw-bold"><i class="bi bi-clock-fill me-2 text-primary"></i>My Availability</h1>
+    <p class="text-muted mb-0 small">Set when you're available. Managers use this when scheduling you.</p>
+  </div>
+</div>
+
+{% if messages %}
+  {% for message in messages %}
+  <div class="alert alert-{{ message.tags|default:'success' }} alert-dismissible fade show mb-3">
+    {{ message }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endfor %}
+{% endif %}
+
+{# ── Weekly recurring grid ───────────────────────────────────────── #}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white border-bottom py-3">
+    <h5 class="mb-0 fw-semibold"><i class="bi bi-arrow-repeat me-2 text-success"></i>Weekly Recurring</h5>
+  </div>
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th style="width:130px">Day</th>
+          <th>Availability</th>
+          <th class="text-center">Status</th>
+          <th class="text-end"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for idx, day_name in days %}
+        {% with avail=weekly_by_day|get_item:idx %}
+        <tr>
+          <td class="fw-semibold">{{ day_name }}</td>
+
+          <td>
+            {% if avail %}
+              {% if avail.start_time and avail.end_time %}
+                <span class="text-body">
+                  {{ avail.start_time|time:"g:ia" }} – {{ avail.end_time|time:"g:ia" }}
+                </span>
+                <span class="badge bg-light text-dark border ms-1">{{ avail.timezone }}</span>
+              {% else %}
+                <span class="text-muted">Unavailable all day</span>
+              {% endif %}
+            {% else %}
+              <span class="text-muted small">Not set</span>
+            {% endif %}
+          </td>
+
+          <td class="text-center">
+            {% if avail %}
+              {% if avail.start_time and avail.end_time %}
+                <span class="badge bg-success">Available</span>
+              {% else %}
+                <span class="badge bg-danger">Unavailable</span>
+              {% endif %}
+            {% else %}
+              <span class="badge bg-secondary">Not Set</span>
+            {% endif %}
+          </td>
+
+          <td class="text-end">
+            {# Opens a Bootstrap modal for editing — no Alpine/HTMX nesting issues #}
+            <button class="btn btn-sm btn-outline-primary"
+                    data-bs-toggle="modal"
+                    data-bs-target="#availModal"
+                    data-day="{{ idx }}"
+                    data-dayname="{{ day_name }}"
+                    data-start="{% if avail and avail.start_time %}{{ avail.start_time|time:'H:i' }}{% endif %}"
+                    data-end="{% if avail and avail.end_time %}{{ avail.end_time|time:'H:i' }}{% endif %}"
+                    data-tz="{% if avail %}{{ avail.timezone }}{% else %}{{ request.user.location_certifications.first.location.timezone|default:'America/Los_Angeles' }}{% endif %}">
+              <i class="bi bi-pencil-fill"></i>
+            </button>
+          </td>
+        </tr>
+        {% endwith %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# ── One-off overrides ────────────────────────────────────────────── #}
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+    <h5 class="mb-0 fw-semibold">
+      <i class="bi bi-calendar-event-fill me-2 text-warning"></i>Date-Specific Overrides
+    </h5>
+    <button class="btn btn-sm btn-outline-primary"
+            data-bs-toggle="modal" data-bs-target="#oneOffModal">
+      <i class="bi bi-plus-lg me-1"></i>Add Override
+    </button>
+  </div>
+  <div class="card-body p-0">
+    <ul class="list-group list-group-flush">
+      {% for oo in one_offs %}
+      <li class="list-group-item d-flex justify-content-between align-items-center py-3">
+        <div>
+          <strong>{{ oo.specific_date|date:"D, M j, Y" }}</strong>
+          {% if oo.start_time and oo.end_time %}
+            <span class="text-muted ms-2">
+              {{ oo.start_time|time:"g:ia" }} – {{ oo.end_time|time:"g:ia" }} {{ oo.timezone }}
+            </span>
+          {% else %}
+            <span class="badge bg-danger ms-2">Unavailable all day</span>
+          {% endif %}
+        </div>
+        {# Plain POST form — no HTMX #}
+        <form method="post" action="{% url 'accounts:availability' %}">
+          {% csrf_token %}
+          <input type="hidden" name="recurrence" value="one_off">
+          <input type="hidden" name="specific_date" value="{{ oo.specific_date|date:'Y-m-d' }}">
+          <input type="hidden" name="delete" value="true">
+          <button type="submit" class="btn btn-sm btn-outline-danger">
+            <i class="bi bi-trash3"></i>
+          </button>
+        </form>
+      </li>
+      {% empty %}
+      <li class="list-group-item text-center text-muted py-4">No date overrides set.</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+
+{# ── Edit weekly availability modal ──────────────────────────────── #}
+<div class="modal fade" id="availModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <form method="post" action="{% url 'accounts:availability' %}">
+        {% csrf_token %}
+        <input type="hidden" name="recurrence" value="weekly">
+        <input type="hidden" name="day_of_week" id="modalDayInput">
+
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalDayLabel">Set Availability</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <p class="text-muted small mb-3">Leave times blank to mark yourself unavailable all day.</p>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Start Time</label>
+            <input type="time" class="form-control" name="start_time" id="modalStartTime">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">End Time</label>
+            <input type="time" class="form-control" name="end_time" id="modalEndTime">
+          </div>
+          <div class="mb-0">
+            <label class="form-label fw-semibold">Timezone</label>
+            <select class="form-select" name="timezone" id="modalTz">
+              {% for tz in timezones %}
+                <option value="{{ tz }}">{{ tz }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# ── Add one-off override modal ───────────────────────────────────── #}
+<div class="modal fade" id="oneOffModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <form method="post" action="{% url 'accounts:availability' %}">
+        {% csrf_token %}
+        <input type="hidden" name="recurrence" value="one_off">
+
+        <div class="modal-header">
+          <h5 class="modal-title">Add Date Override</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <p class="text-muted small mb-3">Leave times blank to mark yourself unavailable all day.</p>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Date</label>
+            <input type="date" class="form-control" name="specific_date" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Start Time</label>
+            <input type="time" class="form-control" name="start_time">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">End Time</label>
+            <input type="time" class="form-control" name="end_time">
+          </div>
+          <div class="mb-0">
+            <label class="form-label fw-semibold">Timezone</label>
+            <select class="form-select" name="timezone">
+              {% for tz in timezones %}
+                <option value="{{ tz }}">{{ tz }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+/**
+ * Populate the weekly availability modal with existing values
+ * when the pencil button is clicked on a day row.
+ */
+document.getElementById('availModal').addEventListener('show.bs.modal', function (event) {
+  const btn = event.relatedTarget;
+  document.getElementById('modalDayLabel').textContent = 'Set Availability — ' + btn.dataset.dayname;
+  document.getElementById('modalDayInput').value  = btn.dataset.day;
+  document.getElementById('modalStartTime').value = btn.dataset.start || '';
+  document.getElementById('modalEndTime').value   = btn.dataset.end   || '';
+
+  const tzSelect = document.getElementById('modalTz');
+  const tz = btn.dataset.tz || 'America/Los_Angeles';
+  for (const opt of tzSelect.options) {
+    opt.selected = (opt.value === tz);
+  }
+});
+</script>
+{% endblock %}

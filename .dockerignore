@@ -2,32 +2,3 @@ fly.toml
 .git/
 *.sqlite3
 venv
-
-*.pyc
-*.pyo
-*.log
-.DS_Store
-
-
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
-*.egg
-*.pyo
-*.pyd
-*.pdb
-
-# Migrations
-*/migrations/__pycache__/
-*/migrations/*.py
-
-# IDEs
-.vscode/
-.idea/
-
-# Coverage & Testing
-.coverage
-htmlcov/
-.tox/
-pytest_cache/

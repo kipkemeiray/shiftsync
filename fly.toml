@@ -1,0 +1,112 @@
+# fly.toml app configuration file generated for shiftsync on 2026-02-27T20:53:20+03:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'shiftsync'
+primary_region = 'ams'
+console_command = '/code/manage.py shell'
+
+[build]
+  # Uses the repo-root Dockerfile
+  dockerfile = "Dockerfile"
+
+
+# ---------------------------------------------------------------------------
+# Deploy configuration
+# ---------------------------------------------------------------------------
+[deploy]
+  # Blue-green with health-check validation before cutting over
+  strategy = "bluegreen"
+
+  # Run migrations as a release command before new instances come up.
+  # This ensures migrations run exactly ONCE per deploy, not once per machine.
+  release_command = "python manage.py migrate --noinput"
+
+
+# ---------------------------------------------------------------------------
+# Process groups — each maps to a case in docker/entrypoint.sh
+# ---------------------------------------------------------------------------
+[processes]
+  web    = ""         # entrypoint default is "web"
+  worker = ""         # FLY_PROCESS_GROUP=worker set automatically by Fly
+  beat   = ""         # FLY_PROCESS_GROUP=beat
+
+
+# ---------------------------------------------------------------------------
+# Machine sizing per process group
+# ---------------------------------------------------------------------------
+[[vm]]
+  processes    = ["web"]
+  cpu_kind     = "shared"
+  cpus         = 1
+  memory_mb    = 512        # Daphne + Django fits comfortably here
+
+[[vm]]
+  processes    = ["worker"]
+  cpu_kind     = "shared"
+  cpus         = 1
+  memory_mb    = 256        # Celery workers are lighter
+
+[[vm]]
+  processes    = ["beat"]
+  cpu_kind     = "shared"
+  cpus         = 1
+  memory_mb    = 256        # Beat scheduler is very lightweight
+
+
+# ---------------------------------------------------------------------------
+# HTTP service (web process only)
+# ---------------------------------------------------------------------------
+[[services]]
+  processes    = ["web"]
+  internal_port = 8000
+  protocol     = "tcp"
+
+  [[services.ports]]
+    port     = 80
+    handlers = ["http"]
+
+  [[services.ports]]
+    port     = 443
+    handlers = ["tls", "http"]
+
+  # Fly terminates TLS, so we trust its X-Forwarded-Proto header
+  [services.concurrency]
+    type       = "connections"
+    hard_limit = 100
+    soft_limit = 80
+
+  # Health check — Django has a /health/ endpoint returning 200
+  [[services.http_checks]]
+    interval      = 10000   # ms
+    timeout       = 5000
+    grace_period  = "30s"
+    method        = "GET"
+    path          = "/health/"
+    protocol      = "http"
+
+
+# ---------------------------------------------------------------------------
+# Environment variables (non-secret)
+# Secrets (DATABASE_URL, REDIS_URL, SECRET_KEY) are set via `fly secrets set`
+# ---------------------------------------------------------------------------
+[env]
+  DJANGO_SETTINGS_MODULE = "shiftsync.settings.production"
+  PORT                   = "8000"
+  # Tell Django that Fly's load balancer is the trusted proxy
+  DJANGO_SECURE_PROXY_SSL_HEADER = "HTTP_X_FORWARDED_PROTO,https"
+
+
+# [http_service]
+#   internal_port = 8000
+#   force_https = true
+#   auto_stop_machines = 'stop'
+#   auto_start_machines = true
+#   min_machines_running = 1
+#   processes = ['app']
+
+
+[[statics]]
+  guest_path = '/code/static'
+  url_prefix = '/static/'

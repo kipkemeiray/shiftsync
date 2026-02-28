@@ -9,6 +9,20 @@
 
 ---
 
+## 🚀 Live Application
+
+|                   |                                                   |
+| ----------------- | ------------------------------------------------- |
+| **Deployed URL**  | **https://shiftsync.fly.dev**                     |
+| **Source Code**   | https://github.com/your-org/shiftsync             |
+| **Admin login**   | `admin@coastaleats.com` / `ShiftSync2026!`        |
+| **Manager login** | `mgr.westside@coastaleats.com` / `ShiftSync2026!` |
+| **Staff login**   | `alice@coastaleats.com` / `ShiftSync2026!`        |
+
+> All seed accounts use password `ShiftSync2026!` — full credential table below.
+
+---
+
 ## Table of Contents
 
 1. [Quick Start (Local)](#quick-start-local)
@@ -91,6 +105,7 @@ fly ssh console -C "python manage.py seed_data"
 Requires `FLY_API_TOKEN` set in GitHub repo secrets (`fly tokens create deploy`).
 
 **Architecture on Fly:**
+
 ```
 Internet → Fly Proxy (TLS) ─┬─ [web] daphne ASGI (HTTP + WebSockets)
                              ├─ [worker] Celery worker
@@ -106,6 +121,7 @@ Internet → Fly Proxy (TLS) ─┬─ [web] daphne ASGI (HTTP + WebSockets)
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full breakdown.
 
 **Stack:**
+
 - **Django 5** + **Django Channels 4** (WebSockets via daphne ASGI)
 - **PostgreSQL** (primary store; JSONB audit log)
 - **Redis** (Channels layer + Celery broker)
@@ -120,27 +136,30 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full breakdown.
 After `python manage.py seed_data`:
 
 ### Admin
-| Email | Password |
-|---|---|
+
+| Email                   | Password         |
+| ----------------------- | ---------------- |
 | `admin@coastaleats.com` | `ShiftSync2026!` |
 
 ### Managers
-| Email | Password | Locations |
-|---|---|---|
-| `mgr.westside@coastaleats.com` | `ShiftSync2026!` | Westside (PT), Marina (PT) |
+
+| Email                           | Password         | Locations                  |
+| ------------------------------- | ---------------- | -------------------------- |
+| `mgr.westside@coastaleats.com`  | `ShiftSync2026!` | Westside (PT), Marina (PT) |
 | `mgr.eastcoast@coastaleats.com` | `ShiftSync2026!` | Downtown (ET), Harbor (ET) |
 
 ### Staff
-| Email | Password | Skills | Locations |
-|---|---|---|---|
-| `alice@coastaleats.com` | `ShiftSync2026!` | bartender, server | Westside, Marina |
-| `bob@coastaleats.com` | `ShiftSync2026!` | line cook | Westside |
-| `carol@coastaleats.com` | `ShiftSync2026!` | server, host | Downtown, Harbor |
-| `david@coastaleats.com` | `ShiftSync2026!` | bartender | Downtown |
-| `eve@coastaleats.com` | `ShiftSync2026!` | line cook, server | All 4 |
-| `frank@coastaleats.com` | `ShiftSync2026!` | host, busser | Marina |
-| `grace@coastaleats.com` | `ShiftSync2026!` | server, expo | Harbor, Downtown |
-| `henry@coastaleats.com` | `ShiftSync2026!` | bartender, expo | Westside, Downtown |
+
+| Email                   | Password         | Skills            | Locations          |
+| ----------------------- | ---------------- | ----------------- | ------------------ |
+| `alice@coastaleats.com` | `ShiftSync2026!` | bartender, server | Westside, Marina   |
+| `bob@coastaleats.com`   | `ShiftSync2026!` | line cook         | Westside           |
+| `carol@coastaleats.com` | `ShiftSync2026!` | server, host      | Downtown, Harbor   |
+| `david@coastaleats.com` | `ShiftSync2026!` | bartender         | Downtown           |
+| `eve@coastaleats.com`   | `ShiftSync2026!` | line cook, server | All 4              |
+| `frank@coastaleats.com` | `ShiftSync2026!` | host, busser      | Marina             |
+| `grace@coastaleats.com` | `ShiftSync2026!` | server, expo      | Harbor, Downtown   |
+| `henry@coastaleats.com` | `ShiftSync2026!` | bartender, expo   | Westside, Downtown |
 
 > Seed data includes pre-built overtime trap (Bob at 38h before weekend),
 > fairness imbalance (Alice gets all premium shifts), and a pending swap request.
@@ -150,32 +169,38 @@ After `python manage.py seed_data`:
 ## Evaluation Scenarios
 
 ### 1. The Sunday Night Chaos
+
 Dashboard → "On-Duty Now" → locate the uncovered 7pm shift → **"Find Coverage"**
 → system shows qualified, non-overtime staff sorted by current weekly hours →
 one-click assign → staff notified via WebSocket instantly.
 
 ### 2. The Overtime Trap
+
 The week grid shows Bob's hours column updating live as shifts are added.
 At 38h, attempting to add another shift triggers a **hard block modal** showing
 current hours + proposed hours + which specific assignments contribute.
 The **"What-If"** button simulates without committing.
 
 ### 3. The Timezone Tangle
+
 Carol enters "9am–5pm" availability in PT. That stored as `09:00 America/Los_Angeles`.
 A Downtown (ET) 9am shift = 14:00 UTC; Carol's 9am PT = 17:00 UTC.
 The constraint engine compares UTC → Carol is correctly blocked from the ET morning shift.
 
 ### 4. The Simultaneous Assignment
+
 Both managers open the same shift's assignment modal → both join `shift_editing_{id}`
-WebSocket group → second manager sees: *"⚠ Jennifer Park is also editing this shift."*
+WebSocket group → second manager sees: _"⚠ Jennifer Park is also editing this shift."_
 If both submit simultaneously, `SELECT FOR UPDATE` ensures one gets a `409 Conflict`.
 
 ### 5. The Fairness Complaint
+
 Analytics → Fairness Report → select staff → date range → **Premium Shift Distribution**
 chart shows Friday/Saturday evening shift counts vs. location average, with a fairness
 score showing deviation from equal share. Exportable as CSV.
 
 ### 6. The Regret Swap
+
 Staff A cancels their swap at any point before manager approval:
 status → `CANCELLED`, Staff B notified, manager approval request withdrawn,
 original assignment reverts to `ASSIGNED`. No manager action required.
@@ -184,13 +209,13 @@ original assignment reverts to `ASSIGNED`. No manager action required.
 
 ## Design Decisions
 
-| Ambiguity | Decision |
-|---|---|
-| De-certified staff history | Preserve all past assignments; block future only |
-| Desired hours vs. availability | Availability = hard constraint; desired hours = analytics soft target |
-| Consecutive days (short shifts) | Any shift counts as a worked day (conservative, legally safe) |
-| Shift edited after swap approval | Material edit cancels the swap; all parties notified |
-| Border-spanning location timezone | Single canonical timezone per location; documented limitation |
+| Ambiguity                         | Decision                                                              |
+| --------------------------------- | --------------------------------------------------------------------- |
+| De-certified staff history        | Preserve all past assignments; block future only                      |
+| Desired hours vs. availability    | Availability = hard constraint; desired hours = analytics soft target |
+| Consecutive days (short shifts)   | Any shift counts as a worked day (conservative, legally safe)         |
+| Shift edited after swap approval  | Material edit cancels the swap; all parties notified                  |
+| Border-spanning location timezone | Single canonical timezone per location; documented limitation         |
 
 ---
 

@@ -181,6 +181,20 @@ CELERY_TASK_QUEUES = {
 }
 CELERY_TASK_DEFAULT_QUEUE = "default"
 
+# Periodic tasks (django-celery-beat seeds these into the DB on first run)
+CELERY_BEAT_SCHEDULE = {
+    # Expire unclaimed drop requests every 15 minutes
+    "expire-drop-requests": {
+        "task": "scheduling.expire_drop_requests",
+        "schedule": 900,  # seconds
+    },
+    # Expire swap requests with no response after 24 h — check every hour
+    "expire-swap-requests": {
+        "task": "scheduling.expire_swap_requests",
+        "schedule": 3600,  # seconds
+    },
+}
+
 # ---------------------------------------------------------------------------
 # Crispy Forms
 # ---------------------------------------------------------------------------

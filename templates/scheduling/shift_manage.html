@@ -267,11 +267,26 @@
           <select name="user_id" class="form-select" id="assignStaffSelect" required>
             <option value="" disabled selected>Loading…</option>
           </select>
-          <div class="form-text">Only certified, qualified staff at this location are shown.</div>
+          <div class="form-text mb-3">Only certified, qualified staff at this location are shown. Hours shown are for this week.</div>
+
+          {# Override reason — shown by JS only when a 7th-consecutive-day warning is returned #}
+          <div id="overrideSection" class="d-none">
+            <div class="alert alert-warning py-2 small mb-2">
+              <i class="bi bi-exclamation-triangle-fill me-1"></i>
+              <strong>Manager override required.</strong> This assignment would be the staff
+              member's 7th consecutive day. Provide a documented reason to proceed.
+            </div>
+            <label class="form-label fw-semibold">Override Reason <span class="text-danger">*</span></label>
+            <input type="text" name="override_reason" id="overrideReason"
+                   class="form-control"
+                   placeholder="e.g. Critical understaffing, staff volunteered"
+                   maxlength="300">
+            <div class="form-text">Required. Saved to audit log.</div>
+          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary">
+          <button type="submit" class="btn btn-primary" id="assignSubmitBtn">
             <i class="bi bi-check-lg me-1"></i>Assign
           </button>
         </div>
@@ -285,21 +300,41 @@
 {% block scripts %}
 <script>
 /**
- * When the assign modal opens, populate the staff dropdown with qualified
- * staff for the selected shift (passed via data attributes on the trigger button).
- * We embed the full staff data as JSON to avoid a separate AJAX call.
+ * Assign modal:
+ *  1. Populate staff dropdown from embedded JSON (no AJAX needed).
+ *  2. Show/hide the override-reason section based on staff hours.
+ *     If a selected staff member has >= 35h this week, flag a warning.
+ *     The override reason field is shown if the server returns an
+ *     "override_required" flash — the manager then resubmits.
  */
 const staffByLocationAndSkill = {{ staff_json|safe }};
 
-document.getElementById('assignModal').addEventListener('show.bs.modal', function(e) {
-  const btn = e.relatedTarget;
+const assignModal   = document.getElementById('assignModal');
+const overrideSec   = document.getElementById('overrideSection');
+const overrideInput = document.getElementById('overrideReason');
+const submitBtn     = document.getElementById('assignSubmitBtn');
+
+// Show override section if there's an override warning in the flash messages
+// (the view redirects back with a ?override_needed=1 param on 7th-day block)
+if (new URLSearchParams(window.location.search).get('override_needed') === '1') {
+  overrideSec.classList.remove('d-none');
+  overrideInput.required = true;
+}
+
+assignModal.addEventListener('show.bs.modal', function(e) {
+  const btn        = e.relatedTarget;
   const shiftId    = btn.dataset.shiftId;
   const shiftLabel = btn.dataset.shiftLabel;
   const skillId    = parseInt(btn.dataset.skillId);
   const locationId = parseInt(btn.dataset.locationId);
 
-  document.getElementById('assignShiftId').value   = shiftId;
+  document.getElementById('assignShiftId').value      = shiftId;
   document.getElementById('assignShiftLabel').textContent = shiftLabel;
+
+  // Reset override section
+  overrideSec.classList.add('d-none');
+  overrideInput.required = false;
+  overrideInput.value = '';
 
   const select = document.getElementById('assignStaffSelect');
   select.innerHTML = '<option value="" disabled selected>Select staff member…</option>';
@@ -313,10 +348,39 @@ document.getElementById('assignModal').addEventListener('show.bs.modal', functio
     candidates.forEach(function(s) {
       const opt = document.createElement('option');
       opt.value = s.id;
-      opt.textContent = s.name + ' (' + s.hours + 'h this week)';
+      // Highlight staff approaching overtime
+      const hoursLabel = s.hours >= 35
+        ? s.hours + 'h ⚠️ approaching limit'
+        : s.hours + 'h this week';
+      opt.textContent = s.name + ' — ' + hoursLabel;
+      if (s.hours >= 40) opt.disabled = true;
       select.appendChild(opt);
     });
   }
 });
+
+// Re-open modal pre-filled with the shift when override is needed.
+// The view sets ?override_needed=1&shift_id=X&user_id=Y on redirect.
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('override_needed') !== '1') return;
+  const shiftId = params.get('shift_id');
+  const userId  = params.get('user_id');
+  if (!shiftId) return;
+
+  // Show the override section immediately
+  overrideSec.classList.remove('d-none');
+  overrideInput.required = true;
+
+  // Pre-select the shift in the hidden field if the modal is opened manually
+  document.getElementById('assignShiftId').value = shiftId;
+
+  // Try to pre-select the user in the dropdown if present
+  const select = document.getElementById('assignStaffSelect');
+  if (userId) {
+    const existing = select.querySelector(`option[value="${userId}"]`);
+    if (existing) existing.selected = true;
+  }
+})();
 </script>
 {% endblock %}

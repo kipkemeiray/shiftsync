@@ -107,4 +107,117 @@
     </table>
   </div>
 </div>
+
+{# ── Charts ──────────────────────────────────────────────────────── #}
+{% if analytics_data %}
+<div class="row g-4 mt-2">
+
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-bottom py-3">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-bar-chart-fill me-2 text-primary"></i>Hours Distribution</h6>
+      </div>
+      <div class="card-body">
+        <canvas id="hoursChart" height="120"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-bottom py-3">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-pie-chart-fill me-2 text-warning"></i>Premium Shift Distribution</h6>
+      </div>
+      <div class="card-body d-flex justify-content-center">
+        <canvas id="premiumChart" style="max-height:260px;max-width:260px"></canvas>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if analytics_data %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"
+        integrity="sha512-ZwR1/gSZM3ai6vCdI+LVF1zSq/5HznD3oD+sCoJrzXJ+yKdsswh+hkzkM9UI/6FUEbkCzQS0lCbCGJgA8WBhg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+const labels   = [{% for r in analytics_data %}"{{ r.user.get_short_name|escapejs }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+const hours    = [{% for r in analytics_data %}{{ r.total_hours }}{% if not forloop.last %},{% endif %}{% endfor %}];
+const premium  = [{% for r in analytics_data %}{{ r.premium_shifts }}{% if not forloop.last %},{% endif %}{% endfor %}];
+const desired  = [{% for r in analytics_data %}{{ r.desired_hours_period }}{% if not forloop.last %},{% endif %}{% endfor %}];
+
+// Color bars: red if over 40h projected, amber if >35h, green otherwise
+const barColors = hours.map(h => h >= 40 ? '#dc3545' : h >= 35 ? '#ffc107' : '#0d6efd');
+
+// Hours bar chart
+new Chart(document.getElementById('hoursChart'), {
+  type: 'bar',
+  data: {
+    labels,
+    datasets: [
+      {
+        label: 'Total Hours',
+        data: hours,
+        backgroundColor: barColors,
+        borderRadius: 4,
+      },
+      {
+        label: 'Desired Hours',
+        data: desired,
+        type: 'line',
+        borderColor: '#6c757d',
+        borderDash: [5, 5],
+        pointRadius: 3,
+        fill: false,
+        tension: 0,
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { position: 'bottom' } },
+    scales: {
+      y: { beginAtZero: true, title: { display: true, text: 'Hours' } }
+    }
+  }
+});
+
+// Premium pie chart — only render if any premium shifts exist
+const totalPremium = premium.reduce((a,b) => a+b, 0);
+if (totalPremium > 0) {
+  const pieColors = [
+    '#0d6efd','#6610f2','#6f42c1','#d63384','#dc3545',
+    '#fd7e14','#ffc107','#198754','#20c997','#0dcaf0'
+  ];
+  new Chart(document.getElementById('premiumChart'), {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{
+        data: premium,
+        backgroundColor: pieColors.slice(0, labels.length),
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.label}: ${ctx.parsed} premium shift${ctx.parsed !== 1 ? 's' : ''}`
+          }
+        }
+      }
+    }
+  });
+} else {
+  document.getElementById('premiumChart').closest('.card-body').innerHTML =
+    '<p class="text-muted text-center py-4 mb-0"><i class="bi bi-star me-1"></i>No premium shifts in this period.</p>';
+}
+</script>
+{% endif %}
 {% endblock %}

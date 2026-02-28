@@ -17,7 +17,7 @@ console_command = '/code/manage.py shell'
 # ---------------------------------------------------------------------------
 [deploy]
   # Blue-green with health-check validation before cutting over
-  strategy = "bluegreen"
+  # strategy = "bluegreen"
 
   # Run migrations as a release command before new instances come up.
   # This ensures migrations run exactly ONCE per deploy, not once per machine.
@@ -78,13 +78,13 @@ console_command = '/code/manage.py shell'
     soft_limit = 80
 
   # Health check — Django has a /health/ endpoint returning 200
-  [[services.http_checks]]
-    interval      = 10000   # ms
-    timeout       = 5000
-    grace_period  = "30s"
-    method        = "GET"
-    path          = "/health/"
-    protocol      = "http"
+  # [[services.http_checks]]
+  #  interval      = 10000   # ms
+  #  timeout       = 5000
+  #  grace_period  = "30s"
+  #  method        = "GET"
+  #  path          = "/health/"
+  #  protocol      = "http"
 
 
 # ---------------------------------------------------------------------------
@@ -95,7 +95,7 @@ console_command = '/code/manage.py shell'
   DJANGO_SETTINGS_MODULE = "shiftsync.settings.production"
   PORT                   = "8000"
   # Tell Django that Fly's load balancer is the trusted proxy
-  DJANGO_SECURE_PROXY_SSL_HEADER = "HTTP_X_FORWARDED_PROTO,https"
+  #DJANGO_SECURE_PROXY_SSL_HEADER = "HTTP_X_FORWARDED_PROTO,https"
 
 
 # [http_service]
